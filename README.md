@@ -90,6 +90,11 @@ PowerGridDynamics/
 │   ├── branch2.csv
 │   └── bus.csv
 │
+├── 1README/
+│   ├── 0AyrtonAlmadaResume.pdf
+│   ├── 1AyrtonAlmadaPaper.pdf
+│   └── 2AyrtonAlmadaPoster.pdf
+│
 └── README.md
 ```
 
@@ -186,4 +191,5 @@ If you use this code in your research, please cite the associated publication:
 ## License
 
 This project is released under the MIT License.
+
 
