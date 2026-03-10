@@ -102,7 +102,7 @@ PowerGridDynamics/
 │       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,
 │       └─────Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating. ]]
 │
-├── 1ThreePhases/
+├── 2ExamplesOfThreePhaseFaults/
 │   └── [Examples three phase faults (complete removal) in the Israeli system]
 │       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,
 │       └─────Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating. ]]
@@ -212,6 +212,7 @@ If you use this code in your research, please cite the following publications:
 ## License
 
 This project is released under the MIT License.
+
 
 
 
