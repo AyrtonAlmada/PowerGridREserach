@@ -189,7 +189,7 @@ This toolkit can be used for research in:
 
 ## Citation
 
-If you use this code in your research, please cite the associated publication:
+If you use this code in your research, please cite the followiing publications:
 
 ```
 @article{almada2025real,
@@ -200,9 +200,19 @@ If you use this code in your research, please cite the associated publication:
 }
 ```
 
+```
+@article{almada2026real,
+  title={Real-Time Dynamic N-1 Screening: Identifying High-Risk Lines and Transformers After Common Faults},
+  author={Almada, Ayrton and Pagnier, Laurent and Goldshtein, Igal and Kazi, Saif R and others},
+  journal={arXiv preprint arXiv:2602.12293},
+  year={2026}
+}
+```
+
 ## License
 
 This project is released under the MIT License.
+
 
 
 
