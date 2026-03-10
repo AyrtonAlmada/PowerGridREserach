@@ -83,7 +83,9 @@ PowerGridDynamics/
 │   └── PowerGridsFunctions3.jl
 │
 ├── 0examples/
-│   └── SimulationExampleISRAEL.ipynb
+│   ├── SimulationExampleISRAEL.ipynb
+│   ├── IsraeliPowerGrid.png
+│   └── israel.m
 │
 ├── 0data/
 │   ├── branch.csv
@@ -191,5 +193,6 @@ If you use this code in your research, please cite the associated publication:
 ## License
 
 This project is released under the MIT License.
+
 
 
