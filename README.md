@@ -189,7 +189,7 @@ This toolkit can be used for research in:
 
 ## Citation
 
-If you use this code in your research, please cite the followiing publications:
+If you use this code in your research, please cite the following publications:
 
 ```
 @article{almada2025real,
@@ -212,6 +212,7 @@ If you use this code in your research, please cite the followiing publications:
 ## License
 
 This project is released under the MIT License.
+
 
 
 
