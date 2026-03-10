@@ -99,13 +99,13 @@ PowerGridDynamics/
 │
 ├── 1SingPhase/
 │   └── [Examples single phase faults (partial removal) in the Israeli system]
-│       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,]]
-│       └── [[Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating]]
+│       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,
+│       └──   Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating.]]
 │
 ├── 1ThreePhases/
 │   └── [Examples three phase faults (complete removal) in the Israeli system]
-│       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,]]
-│       └── [[Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating]]
+│       └── [[For each case we show Evolution of Frequencies, Normalized Power Flows, Phases,
+│       └──   Overview Analysis (mp4/gif), Overloaded Lines of the System and Overheating.]]
 │
 └── README.md
 ```
@@ -203,6 +203,7 @@ If you use this code in your research, please cite the associated publication:
 ## License
 
 This project is released under the MIT License.
+
 
 
 
