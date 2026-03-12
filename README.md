@@ -12,19 +12,19 @@ Power transmission networks are modeled as weighted graphs where nodes represent
 
 The repository provides tools for:
 
-* constructing the network Laplacian from transmission data
+* Constructing the network Laplacian from transmission data
 
-* building mass and system matrices of the swing equation
+* Building mass and system matrices of the swing equation
 
-* computing analytical time-domain solutions during fault events
+* Bomputing analytical time-domain solutions during fault events
 
-* performing stochastic simulations of grid dynamics
+* Performing stochastic simulations of grid dynamics
 
-* evaluating overheating indicators for transmission lines
+* Evaluating overheating indicators for transmission lines
 
-* detecting constraint violations and fault propagation
+* Detecting constraint violations and fault propagation
 
-* conducting Monte-Carlo experiments to estimate system risk
+* Conducting Monte-Carlo experiments to estimate system risk
 
 These tools enable the study of transient stability and thermal stress in power grids following line failures.
 
@@ -165,6 +165,7 @@ T1=0.0 #Time of Failure
 T2=5 #Time of Clearance
 T3=50 #Finish time
 Bf=copy(df)
+#Complete removal of first transmission line
 j=1
 Bf[j,4]=0*Bf[j,4]
 Bf2=copy(df2)
@@ -177,15 +178,15 @@ println("Overheating indicator: ", b)
 
 This toolkit can be used for research in:
 
-* power system transient stability
+* Power system transient stability
 
-* grid resilience and cascading failures
+* Grid resilience and cascading failures
 
-* renewable integration and stochastic disturbances
+* Renewable integration and stochastic disturbances
 
-* thermal stress analysis of transmission networks
+* Thermal stress analysis of transmission networks
 
-* risk assessment under random faults
+* Risk assessment under random faults
 
 ## Citation
 
@@ -212,6 +213,7 @@ If you use this code in your research, please cite the following publications:
 ## License
 
 This project is released under the MIT License.
+
 
 
 
