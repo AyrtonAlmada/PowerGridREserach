@@ -138,9 +138,13 @@ Pkg.add([
 ## Example Usage
 
 ```
+# Load network data
+
 branch=DataFrame(CSV.File("branch.csv"));
 bus=DataFrame(CSV.File("bus.csv"));
+
 # Re-label data
+
 label2id=Dict{Int,Int}()
 for (i,j) in enumerate(bus.index)
     push!(label2id,j => i)
@@ -151,26 +155,40 @@ indexbus=[label2id[i] for i in bus.index];
 bus.indexbus=indexbus
 branch.indexf_bus=indexf_bus
 branch.indext_bus=indext_bus;
+
 # Drop orginal labels
+
 select!(branch, Not([:f_bus, :t_bus, :index]));
 df=DataFrame(Lines = (1:nrow(branch)), From = branch.indexf_bus, To = branch.indext_bus, 
-    Susceptance = (1)./(branch.br_x), F = branch.rate_a, Nnodes = fill(nrow(bus), nrow(branch)))
+   Susceptance = (1)./(branch.br_x), F = branch.rate_a,
+   Nnodes = fill(nrow(bus), nrow(branch)))
 df.ThetaMax=df.F./df.Susceptance
 df=unique(df,[:From,:To])
 df=sort!(df,[:From,:To])
 df.Lines=(1:nrow(df))
 df2=DataFrame(Damping = bus.d, Inertia = bus.m, PowerInjections = bus.p, Theta0 = bus.va);
 
+# Simulation Setup
+
 T1=0.0 #Time of Failure
 T2=5 #Time of Clearance
 T3=50 #Finish time
+
+# Complete removal of first transmission line
+
 Bf=copy(df)
-#Complete removal of first transmission line
 j=1
 Bf[j,4]=0*Bf[j,4]
 Bf2=copy(df2)
+
+# Simulation Timeseries
+
 @time DFX=AnalyticalSolution(df,df2,Bf,Bf2,T1,T2,T3,0.01)
+
+# Overheating Indicator
+
 @time b=OverheatingIndicator(DFX,df,df2)
+
 println("Overheating indicator: ", b)
 ```
 
@@ -213,6 +231,7 @@ If you use this code in your research, please cite the following publications:
 ## License
 
 This project is released under the MIT License.
+
 
 
 
