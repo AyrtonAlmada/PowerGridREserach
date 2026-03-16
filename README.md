@@ -117,8 +117,8 @@ Ensure that Julia (version ≥ 1.8) is installed.
 Clone the repository:
 
 ```
-git clone https://github.com/yourusername/power-grid-dynamics.git
-cd power-grid-dynamics
+git clone https://github.com/AyrtonAlmada/PowerGridREserach.git
+cd PowerGridREserach
 ```
 
 Install dependencies in Julia:
@@ -133,6 +133,7 @@ Pkg.add([
     "Distributions",
     "Roots"
 ])
+include("N1Plus.jl")
 ```
 
 ## Example Usage
