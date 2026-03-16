@@ -80,7 +80,7 @@ Random fault scenarios can be generated to estimate the distribution of overheat
 PowerGridDynamics/
 │
 ├── 0src/
-│   └── PowerGridsFunctions3.jl
+│   └── N1Plus.jl
 │
 ├── 0examples/
 │   ├── SimulationExampleISRAEL.ipynb
