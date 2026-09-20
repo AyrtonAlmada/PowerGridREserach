@@ -1,0 +1,26 @@
+# This is an executable rerun configuration, not a record of past experiments.
+status = "release_candidate_requires_local_tests"
+case_name = "WECC240_processed_243nodes_248branches"
+alpha = 0.516
+sigma = 1.5
+# Explicitly choose source_random_map to audit the uploaded implementation, or
+# stratonovich_heun for NEW pathwise SDE runs (requires recalibration/validation).
+backend = "source_random_map"
+noise_structure = "phase_difference"
+T1 = 0.0
+T3 = 10.0
+saveat = 0.01
+internal_dt = 0.001
+injection_scale = 1.0
+nominal_duration_rate = 0.1
+proposal_initial_rate = 1.0
+samples_per_adaptation_iteration = 250
+adaptation_iterations = 20
+elite_fraction = 0.1
+old_parameter_retention = 0.9
+final_samples = 35000
+thresholds = [0.0, 0.5, 5.0, 10.0]
+seed_adaptation = 12345678
+seed_estimation = 12345679
+blas_threads = 1
+# No fixed-date DOI, ParaEMT commit or train/test split is invented here.

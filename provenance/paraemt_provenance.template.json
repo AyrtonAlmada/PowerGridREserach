@@ -1,0 +1,14 @@
+{
+  "upstream_repository": "https://github.com/NatLabRockies/ParaEMT_public",
+  "commit_used_for_paper": "",
+  "commit_status": "not_recoverable_from_the_supplied_case_files_alone",
+  "local_modifications_patch": "",
+  "python_environment_lock": "",
+  "emt_fault_and_reclosure_runner": "",
+  "initialization_snapshot_sha256": "",
+  "calibration_trajectory_archive_doi": "",
+  "calibration_trajectory_index": "data/wecc240/metadata/calibration_manifest.csv",
+  "observed_web_history_tip_short": "d79d735",
+  "observed_web_history_tip_is_claimed_run_commit": false,
+  "author_confirmation_required": true
+}

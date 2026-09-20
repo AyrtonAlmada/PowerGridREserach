@@ -1,0 +1,103 @@
+{
+  "python_helpers_tested": true,
+  "julia_runtime_available": false,
+  "julia_tests_executed": false,
+  "WECC_simulations_executed": false,
+  "research_data_generated_by_tests": false,
+  "test_fixtures": "temporary artificial files removed automatically; never included as research data",
+  "checks": [
+    {
+      "check": "calibration index accepts complete 25x46 TEST-ONLY fixture",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/index_calibration.py --metadata /tmp/prx_fixture_lkklydvb/metadata.csv --data-root /tmp/prx_fixture_lkklydvb/trajectories --output /tmp/prx_fixture_lkklydvb/index.csv --require-1150"
+    },
+    {
+      "check": "calibration index refuses overwrite",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/index_calibration.py --metadata /tmp/prx_fixture_lkklydvb/metadata.csv --data-root /tmp/prx_fixture_lkklydvb/trajectories --output /tmp/prx_fixture_lkklydvb/index.csv --require-1150"
+    },
+    {
+      "check": "calibration index rejects incomplete 1150 claim",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/index_calibration.py --metadata /tmp/prx_fixture_lkklydvb/short.csv --data-root /tmp/prx_fixture_lkklydvb/trajectories --output /tmp/prx_fixture_lkklydvb/short-index.csv --require-1150"
+    },
+    {
+      "check": "unknown commit rejected without explicit option",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/index_calibration.py --metadata /tmp/prx_fixture_lkklydvb/unknown.csv --data-root /tmp/prx_fixture_lkklydvb/trajectories --output /tmp/prx_fixture_lkklydvb/unknown-index.csv"
+    },
+    {
+      "check": "unknown commit admitted only with explicit flag and bundle hash",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/index_calibration.py --metadata /tmp/prx_fixture_lkklydvb/unknown.csv --data-root /tmp/prx_fixture_lkklydvb/trajectories --output /tmp/prx_fixture_lkklydvb/unknown-index.csv --allow-unknown-commit"
+    },
+    {
+      "check": "create temporary local git fixture",
+      "status": "passed",
+      "command": "git init /tmp/prx_fixture_lkklydvb/checkout"
+    },
+    {
+      "check": "set test fixture author",
+      "status": "passed",
+      "command": "git -C /tmp/prx_fixture_lkklydvb/checkout config user.name Test fixture only"
+    },
+    {
+      "check": "set test fixture email",
+      "status": "passed",
+      "command": "git -C /tmp/prx_fixture_lkklydvb/checkout config user.email test@example.invalid"
+    },
+    {
+      "check": "add fixture files",
+      "status": "passed",
+      "command": "git -C /tmp/prx_fixture_lkklydvb/checkout add ."
+    },
+    {
+      "check": "commit fixture files",
+      "status": "passed",
+      "command": "git -C /tmp/prx_fixture_lkklydvb/checkout commit -m test fixture only"
+    },
+    {
+      "check": "provenance captures full commit, dirty patch and extra file",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/capture_paraemt_provenance.py /tmp/prx_fixture_lkklydvb/checkout /tmp/prx_fixture_lkklydvb/capture --run-label TEST_ONLY --extra-file experiment.py"
+    },
+    {
+      "check": "provenance refuses overwrite",
+      "status": "passed",
+      "command": "/opt/pyvenv/bin/python /mnt/data/PowerGridREserach_release/scripts/capture_paraemt_provenance.py /tmp/prx_fixture_lkklydvb/checkout /tmp/prx_fixture_lkklydvb/capture --run-label TEST_ONLY"
+    },
+    {
+      "check": "input byte identity: legacy/source/PowerGridsFunctions3_original.jl",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: legacy/source/CEM_original.txt",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: data/wecc240/processed/branch240E3.csv",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: data/wecc240/processed/bus240E3.csv",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: data/wecc240/upstream/240bus.xls",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: data/wecc240/upstream/WECC240.raw",
+      "status": "passed"
+    },
+    {
+      "check": "input byte identity: data/wecc240/upstream/pfd_240_1_1.json",
+      "status": "passed"
+    },
+    {
+      "check": "independent Python algebra: nilpotent G, gauge invariance, known IS diagnostics",
+      "status": "passed",
+      "scope": "mathematical check only; not Julia execution"
+    }
+  ]
+}

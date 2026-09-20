@@ -1,0 +1,321 @@
+############### CEM with Exponential proposal for τ ################
+# No external packages. Julia ≥ 1.8 recommended.
+using Random, Statistics, LinearAlgebra, Printf
+
+# Optional: enable threading for the per-sample simulation loop
+const USE_THREADS = Base.Threads.nthreads() == 1
+
+# ---------------------------
+# === USER HOOKS TO SUPPLY ===
+# Provide ONE of the following scorers:
+# 1) Scalar scorer:    simulate_score(τ::Float64, e::Int)::Float64
+# 2) Batched scorer:   simulate_score!(taus::Vector{Float64}, es::Vector{Int}, out::Vector{Float64})
+#
+# By default, we include a tiny demo scorer. Replace with your solver.
+# ---------------------------
+function simulate_score(τ,e)
+    # ---- PLACEHOLDER: replace with your solver call ----
+    # For demo returns a random function of τ and e:
+    T1=0;
+    T2=0.5;
+    T3=10;
+    Time=T3;
+    tspan=(0,Time);
+    alpha=0;
+    i=e;
+    #T2=min(τ,10)
+    T2=τ;
+    Df=copy(df);
+    Df[i,4]=alpha*Df[i,4];
+    Df2=copy(df2);
+    DFXS=AnalyticalSolution(df,df2,Df,Df2,T1,T2,T3,0.1,sigma);
+    oi=OverheatingIndicator(DFXS,df,df2);
+    return oi
+end
+
+
+
+# ---------------------------
+# Utilities
+# ---------------------------
+# Fast categorical sampling from probabilities π (sum ≈ 1)
+#=
+@inline function sample_categorical!(πcum)
+    r = rand()
+    # Binary search over CDF:
+    lo = 1; hi = length(πcum)
+    while lo < hi
+        mid = (lo + hi) >>> 1
+        if r <= πcum[mid]
+            hi = mid
+        else
+            lo = mid + 1
+        end
+    end
+    return lo
+end
+=#
+
+@inline function sample_categorical!(π)
+    r = rand()
+    cum = 0.0
+    for (i,p) in enumerate(π)
+        cum += p
+        if r <= cum
+            return i
+        end
+    end
+    return length(π)  # numerical fallback
+end
+
+
+
+# Build cumulative distribution from π (with small numerical cleanup)
+function build_cdf!(π, πcum)
+    s = 0.0
+    @inbounds for i in eachindex(π)
+        s += π[i]
+        πcum[i] = s
+    end
+    # renormalize tail drift
+    if πcum[end] != 1.0
+        scale = 1.0 / πcum[end]
+        @inbounds @simd for i in eachindex(πcum)
+            πcum[i] *= scale
+        end
+    end
+    #return nothing
+    return π, πcum
+end
+
+# Compute top-k indices via partial sort (k = n_elite)
+# Returns vector of indices for the k largest values of v.
+function topk_indices(v, k)
+    return partialsortperm(v, 1:k; rev=true)
+end
+
+# ---------------------------
+# Core CEM (Exponential τ + categorical e)
+# ---------------------------
+"""
+cem_exponential(
+    E;                  # number of lines (categories)
+    N=1000, I=20, ρ=0.1,# samples/iter, iterations, elite fraction
+    α=0.9,              # smoothing in parameter space
+    r0=1.0,             # initial rate for q_τ (Exponential)
+    π0=nothing,         # initial categorical probs (default uniform)
+    σ_floor=1e-12,      # (unused here, kept for API symmetry)
+    π_min=1e-6,         # floor for categorical probs
+    verbose=true,
+    use_batch=false     # if true, uses simulate_score! batched
+)
+Returns (r=rate, π=probs, history=Dict(...))
+"""
+function cem_exponential(E,
+                         N=1000,
+                         I=20, 
+                         ρ=0.1,
+                         α=0.9,
+                         r0=1.0,
+                         π0=nothing,
+                         π_min=1e-8,
+                         verbose=true,
+                         use_batch=false)
+
+    @assert E ≥ 1
+    @assert 0 < ρ < 1
+    @assert 0 ≤ α < 1
+    @assert r0 ≥ 0
+
+    # Initialize proposal parameters
+    r = r0
+    π = π0 === nothing ? fill(1.0/E, E) : copy(π0)
+    # Floors + renormalize
+    for j in 1:E
+        if π[j] < π_min
+            π[j] = π_min
+        end
+    end
+    π ./= sum(π)
+
+    # Preallocations
+    #τs = Vector{Float64}(undef, N)
+    τs = zeros(Float64,N)
+    #es = Vector{Int}(undef, N)
+    es = zeros(Int,N)
+    #Ss  = Vector{Float64}(undef, N)
+    Ss  = zeros(Float64,N)
+    πcum = similar(π)
+
+    # History (lightweight)
+    hist_best = []; hist_thr = []; hist_r = []; hist_topπ = []
+
+    for iter in 1:I
+        # Build CDF for line sampling
+        
+        #build_cdf!(π, πcum)
+        #π, πcum=build_cdf!(π, πcum)
+
+        # Sample τ ~ Exp(r), e ~ Categorical(π)
+        for i in 1:N
+            #u = rand()
+            #τs[i] = -log(1 - u) / r            # inverse CDF Exp(r)
+            τs[i] = rand(Exponential(r),1)[1]
+            
+            #es[i] = sample_categorical!(πcum)
+            
+            d=Categorical(π)
+            es[i]=rand(d)[1]
+            
+            Ss[i] = simulate_score(τs[i], es[i])
+        end
+
+        # Score
+        #=
+        if use_batch
+            simulate_score!(τs, es, Ss)
+        else
+            for i in 1:N
+                Ss[i] = simulate_score(τs[i], es[i])
+            end
+        end
+        =#
+        # Elite selection
+        n_elite = max(1, round(Int, ρ * N))
+        elite_idx = topk_indices(Ss, n_elite)
+
+        # Updates:
+        # -- Exponential MLE for rate: r_new = 1 / mean(τ_elite)
+        τbar = 0.0
+        counts = zeros(Float64, E)
+        #=
+         println(elite_idx)
+         println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+         println(es)
+         println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        =#
+        for k in elite_idx
+            τbar += τs[k]
+            counts[es[k]] += 1.0
+            #counts[es[k]] = 1.0
+        end
+        #=
+         println(counts)
+         println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        =#
+        τbar /= n_elite
+        r_new = 1.0 / max(τbar, eps())      # guard div-by-zero
+        # -- Categorical MLE with smoothing + floor
+        π_hat = counts ./ sum(counts)
+        r = α*r + (1-α)*r_new
+        π = α*π + (1-α)*π_hat
+        #=
+        for j in 1:E
+            π[j] = α*π[j] + (1-α)*π_hat[j]
+            if π[j] < π_min
+                π[j] = π_min
+            end
+        end
+        =#
+        π ./= sum(π)
+         #println(π)
+         #println("!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!")
+        # Diagnostics
+        bestS = maximum(Ss)
+        thr = Ss[elite_idx[end]] # last in top-k (k-th largest)
+        push!(hist_best, bestS); 
+        push!(hist_thr, thr)
+        push!(hist_r, r); 
+        push!(hist_topπ, maximum(π))
+        #=
+        println("iter | bestS | thr | r | topπ\n", iter,", ", bestS,", ", thr,", ", r,", ", maximum(π))
+        println(hist_best)
+        println(hist_thr)
+        println(hist_r)
+        println(hist_topπ)
+        println("iter = ",iter,", Testing::::::::::")
+        =#
+    end
+
+    history = Dict("best"=>hist_best,"thr"=>hist_thr,"r"=>hist_r,"topπ"=>hist_topπ)
+    return (r=r, π=π, history=history)
+end
+
+# ---------------------------
+# Importance Sampling (unbiased) under true p:
+# p_tau(τ) = Exp(λ), p_e(e) = 1/E  (uniform).
+# Proposal q: q_tau(τ) = Exp(r), q_e(e) = π_e (learned).
+# Weight: w = [λ e^{-λ τ} / (r e^{-r τ})] * [(1/E) / π_e]
+# log w = (log λ - λ τ) - (log r - r τ) + (-log E) - log π_e
+# ---------------------------
+function importance_estimate_exp(taus, es, indicators, r, π, λ, E=length(π))
+    M = length(taus)
+    @assert length(es)==M && length(indicators)==M
+    logw = Vector{Float64}(undef, M)
+
+    for i in 1:M
+        τ = taus[i]; e = es[i]
+        logw[i] = (log(λ) - λ*τ) - (log(r) - r*τ) + (-log(E)) - log(π[e])
+    end
+
+    # Stable exponentiation
+    m = maximum(logw)
+    wtilde = exp.(logw .- m)
+    # unbiased IS estimator
+    # p̂ = (e^m / M) * sum(I_i * wtilde_i)
+    num = 0.0
+    for i in 1:M
+        if indicators[i] != 0x00
+            num += wtilde[i]
+        end
+    end
+    phat = exp(m) * num / M
+
+    # SE via sample variance of Yi = I_i * w_i
+    # Use scaled weights to avoid overflow: Yi = e^m * I_i * wtilde_i
+    meanY = phat
+    s2 = 0.0
+    # compute sum((Yi - meanY)^2)
+    for i in 1:M
+        Yi = (indicators[i] != 0x00) ? (exp(m)*wtilde[i]) : 0.0
+        d = Yi - meanY
+        s2 += d*d
+    end
+    se = sqrt( (s2 / (M - 1)) / M )
+
+    # ESS (scaling cancels): (sum w)^2 / sum w^2 = (sum wtilde)^2 / sum wtilde^2
+    ess = (sum(wtilde)^2) / sum(wtilde.^2)
+
+    #return (phat=phat, se=se, ESS=ess, max_logw=m, mean_w = exp(m)*mean(wtilde))
+    return (phat=phat, se=se, ESS=ess)
+end
+
+# ---------------------------
+# Convenience function to draw M samples from learned proposal and estimate
+# Requires the user to supply the event indicator:
+# either by providing a boolean function event?(τ,e) or by thresholding a score.
+# Here we accept a function `indicator(τ,e)::Bool` for flexibility.
+# ---------------------------
+function estimate_probability(M, r, π, λ, indicator)
+    E = length(π)
+    taus = Vector{Float64}(undef, M)
+    es   = Vector{Int}(undef, M)
+    inds = Vector{UInt8}(undef, M)
+    πcum = similar(π)
+    
+    #build_cdf!(π, πcum)
+    #π, πcum=build_cdf!(π, πcum)
+    
+    for i in 1:M
+        #u = rand()
+        #τ = -log(1-u)/r
+        τ = rand(Exponential(r),1)[1]
+        #e = sample_categorical!(πcum)
+        d=Categorical(π)
+        e=rand(d)[1]
+        
+        taus[i] = τ; es[i] = e
+        inds[i] = indicator(τ,e) ? 0x01 : 0x00
+    end
+    return importance_estimate_exp(taus, es, inds, r, π, λ, E)
+end
