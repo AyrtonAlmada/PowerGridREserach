@@ -383,13 +383,12 @@ The final estimation law retains **both learned components**, `res.π` and `res.
 With uniform nominal fault selection and nominal duration rate `lambda0`,
 
 ```math
-p_Z(e,\tau)=\frac1E\lambda_0e^{-\lambda_0\tau},\qquad
-q(e,\tau)=\phi_e r e^{-r\tau},
+p_Z(e,\tau)=\frac{1}{E}\frac{1}{\lambda_0}e^{-\frac{1}{\lambda_0}\tau},\qquad
+q(e,\tau)=\phi_e\,\frac{1}{r} e^{-\frac{1}{r}\tau},
 ```
 
 ```math
-w_k=\frac{\lambda_0}{E\phi_{e_k}r}
-\exp[(r-\lambda_0)\tau_k].
+w_k=\frac{r^{(20)}}{E\phi_{e_k}^{(20)}\lambda_0}\exp\!\left[\left(\frac{1}{r^{(20)}}-\frac{1}{\lambda_0}\right)\tau_k\right]].
 ```
 
 The implementation draws exponential durations using `randexp(rng)/r`. It uses a
