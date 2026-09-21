@@ -88,23 +88,29 @@ not contain a replacement copy of those historical results.
 
 The reduced state uses the ordering
 
-$$
-X_t=\begin{bmatrix}\omega_t\\\theta_t\end{bmatrix}
-\in\mathbb R^{2n},
-$$
+```math
+X_t = \begin{bmatrix}
+\omega_t \\
+\theta_t
+\end{bmatrix}
+\in\mathbb{R}^{2n},
+```
 
 where `n` is the number of modeled nodes, `omega` is the frequency-deviation
 state, and `theta` contains phase angles in a consistently defined reference
 frame. The nominal drift is
 
-$$
+```math
 A=\begin{bmatrix}
 -M^{-1}D & -M^{-1}L\\
 I & 0
 \end{bmatrix},
 \qquad
-b(z)=\begin{bmatrix}M^{-1}p(z)\\0\end{bmatrix}.
-$$
+b(z) = \begin{bmatrix}
+M^{-1}p(z) \\
+0
+\end{bmatrix}.
+```
 
 Here, `M` and `D` are diagonal effective inertia and damping matrices, `L` is
 the weighted network Laplacian, and `p(z)` is the power-injection vector for
@@ -124,22 +130,22 @@ files. Input schemas are documented in [DATA_DICTIONARY.md](docs/DATA_DICTIONARY
 ## Piecewise stochastic surrogate
 
 For a faulted line `e = (i,j)`, let its endpoint set be
-$\partial e=\{i,j\}$. With pole opening at time zero, the model is
+$`\partial e=\{i,j\}`$. With pole opening at time zero, the model is
 
-$$
+```math
 \begin{cases}
 dX_t=\bigl[A_e(\alpha)X_t+b(z)\bigr]dt
 +\displaystyle\sum_{r\in\partial e}
 G_{e,r}(\sigma_{e,z,r})X_t\circ dW_t^r,
 &0\leq t<T_{\mathrm{op}},\\[2mm]
-\dot X_t=AX_t+b(z),
+\dot{X}_t=AX_t+b(z),
 &T_{\mathrm{op}}<t\leq T_{\mathrm{hor}}.
 \end{cases}
-$$
+```
 
 The state is continuous at reclosure. The independent Wiener drivers act only
 during the open-phase interval. The affected line has effective coupling
-$\alpha\beta_e$ during that interval and nominal coupling $\beta_e$ afterward.
+$`\alpha\beta_e`$ during that interval and nominal coupling $`\beta_e`$ afterward.
 
 The code's time arguments are:
 
@@ -159,36 +165,36 @@ importance-sampling likelihood ratio.
 ### Localized phase-endpoint noise
 
 For the common-amplitude model, the endpoint amplitudes satisfy
-$\sigma_{e,z,i}=\sigma_{e,z,j}=\sigma$. The noise matrix is
+$`\sigma_{e,z,i}=\sigma_{e,z,j}=\sigma`$. The noise matrix is
 
-$$
+```math
 G_{e,r}(\sigma_{e,z,r})=
 \begin{bmatrix}
 0 & 0\\
-0 & \sigma M^{-1}\mathbf e_r\mathbf e_r^{\mathsf T}
+0 & \sigma M^{-1}\mathbf{e}_r\mathbf{e}_r^{\mathsf T}
 \end{bmatrix},
 \qquad r\in\partial e,
-$$
+```
 
-where $\mathbf e_r$ is the `r`th canonical vector in $\mathbb R^n$ and
-$M=\operatorname{diag}(m_1,\ldots,m_n)$, with $m_r>0$. For independent endpoint
-amplitudes, replace `sigma` by the corresponding $\sigma_{e,z,r}$ in each matrix.
+where $`\mathbf{e}_r`$ is the `r`th canonical vector in $`\mathbb{R}^n`$ and
+$`M=\mathrm{diag}(m_1,\ldots,m_n)`$, with $`m_r>0`$. For independent endpoint
+amplitudes, replace `sigma` by the corresponding $`\sigma_{e,z,r}`$ in each matrix.
 
 With the state ordering above, each matrix is diagonal and rank one for nonzero
 amplitude, with its only nonzero entry at
 
-$$
+```math
 [G_{e,r}]_{n+r,n+r}=\frac{\sigma}{m_r}.
-$$
+```
 
 **The noise acts on phase, not frequency.** Its contribution to the phase equation
 is
 
-$$
+```math
 d\theta_t=\omega_t\,dt+
 \sum_{r\in\partial e}\frac{\sigma}{m_r}
-\mathbf e_r\theta_r(t)\circ dW_t^r.
-$$
+\mathbf{e}_r\theta_r(t)\circ dW_t^r.
+```
 
 Consequently, `omega` is the frequency-deviation state supplying the phase drift;
 it is not the pathwise derivative of the noisy phase process.
@@ -197,12 +203,12 @@ This model depends on the phase reference: multiplying absolute phase coordinate
 does not preserve invariance under adding a common constant to every phase.
 Calibration data, initial conditions, and surrogate runs must use the same fixed
 reference convention. The existing initialization chooses the minimum-norm
-pre-fault solution of $L\theta_0=p(z)$ when that equation is consistent, with
+pre-fault solution of $`L\theta_0=p(z)`$ when that equation is consistent, with
 zero initial frequency deviations. Do not re-center or wrap the saved phase
 trajectories to change this convention after simulation.
 
-The diffusion coefficient $\sigma/m_r$ must have units
-$\mathrm{s}^{-1/2}$. If `M` is dimensionless in the adopted normalization, `sigma`
+The diffusion coefficient $`\sigma/m_r`$ must have units
+$`\mathrm{s}^{-1/2}`$. If `M` is dimensionless in the adopted normalization, `sigma`
 also has those units; otherwise its units must include the inertia scaling.
 Record that normalization alongside the fitted amplitudes.
 
@@ -217,17 +223,17 @@ backend = :stratonovich_heun
 The predictor and corrector use the **same Wiener increments** within each step.
 For an open-phase step of length `h`, the scheme is
 
-$$
+```math
 \widetilde X=X_n+h f(X_n)+\sum_rG_{e,r}X_n\Delta W_n^r,
-$$
+```
 
-$$
+```math
 X_{n+1}=X_n+\frac h2\bigl[f(X_n)+f(\widetilde X)\bigr]
 +\frac12\sum_rG_{e,r}(X_n+\widetilde X)\Delta W_n^r,
-\qquad \Delta W_n^r\sim\mathcal N(0,h),
-$$
+\qquad \Delta W_n^r\sim\mathcal{N}(0,h),
+```
 
-where $f(X)=A_e(\alpha)X+b(z)$. The integrator lands on opening and reclosure
+where $`f(X)=A_e(\alpha)X+b(z)`$. The integrator lands on opening and reclosure
 times rather than taking a stochastic step across a switching event. After
 reclosure, propagation uses the nominal affine dynamics without further noise.
 
@@ -240,25 +246,25 @@ convergence before interpreting calibrated parameters or overload probabilities.
 
 The equivalent Itô drift during the open-phase interval is
 
-$$
+```math
 A_{e,\mathrm I}=A_e(\alpha)+\frac12\sum_{r\in\partial e}G_{e,r}^{\,2}.
-$$
+```
 
 For the specified matrices, this correction belongs to the phase--phase block.
 It changes the mean dynamics but is not, in general, a scalar change in the line
 coupling parameter `alpha`.
 
-The mean $\mu=\mathbb E[X_t]$ and covariance $\Sigma$ satisfy
+The mean $`\mu=\mathbb{E}[X_t]`$ and covariance $`\Sigma`$ satisfy
 
-$$
+```math
 \dot\mu=A_{e,\mathrm I}\mu+b(z),
-$$
+```
 
-$$
+```math
 \dot\Sigma=A_{e,\mathrm I}\Sigma+\Sigma A_{e,\mathrm I}^{\mathsf T}
 +\sum_{r\in\partial e}G_{e,r}
 (\Sigma+\mu\mu^{\mathsf T})G_{e,r}^{\mathsf T}.
-$$
+```
 
 After reclosure, the drift is `A` and the diffusion terms are absent. The function
 `moment_rhs(...; convention=:stratonovich)` evaluates these right-hand sides for
@@ -343,17 +349,17 @@ initial equilibrium; use that same scaled operating state in all intervals.
 
 For a monitored line `{i,j}`, the reduced flow proxy is
 
-$$
+```math
 p_{ij}(t)\approx\beta_{ij}[\theta_i(t)-\theta_j(t)].
-$$
+```
 
 The line score and global score are
 
-$$
+```math
 S_{ij}=\int_0^{T_{\mathrm{hor}}}
-\mathbb I\{|p_{ij}(t)|>\overline p_{ij}\}\,dt,
-\qquad S=\sum_{\{i,j\}\in\mathcal E_m}S_{ij}.
-$$
+\mathbb{I}\{|p_{ij}(t)|>\overline p_{ij}\}\,dt,
+\qquad S=\sum_{\{i,j\}\in\mathcal{E}_m}S_{ij}.
+```
 
 The implementation uses a left-endpoint integration rule on the actual saved time
 intervals. `Sij` is cumulative time above a limit; `S` is accumulated line-overload
@@ -378,15 +384,15 @@ a likelihood-ratio-weighted CE adaptation.
 The final estimation law retains **both learned components**, `res.π` and `res.r`.
 With uniform nominal fault selection and nominal duration rate `lambda0`,
 
-$$
+```math
 p_Z(e,\tau)=\frac1E\lambda_0e^{-\lambda_0\tau},\qquad
 q(e,\tau)=\phi_e r e^{-r\tau},
-$$
+```
 
-$$
+```math
 w_k=\frac{\lambda_0}{E\phi_{e_k}r}
 \exp[(r-\lambda_0)\tau_k].
-$$
+```
 
 The implementation draws exponential durations using `randexp(rng)/r`. It uses a
 fresh final batch with the same conditional stochastic-driver law as the nominal
