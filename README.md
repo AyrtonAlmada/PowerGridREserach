@@ -1,54 +1,62 @@
 # PowerGridREserach — EMT-informed dynamic contingency screening
 
-Julia tools for reduced swing dynamics, cumulative line-overload indicators, and
-cross-entropy (CE) importance sampling. The repository separates the historical
-Israel studies from the WECC240 workflow and records the inputs and numerical
-choices needed to audit a run.
+Julia tools for stochastic electromechanical simulation, cumulative line-overload
+indicators, and cross-entropy importance sampling. The project uses high-fidelity
+EMT trajectories to inform a reduced model for repeated dynamic contingency
+assessment.
 
-**Repository:** https://github.com/AyrtonAlmada/PowerGridREserach  
-**EMT reference software:** https://github.com/NatLabRockies/ParaEMT_public
+**Project repository:** [AyrtonAlmada/PowerGridREserach](https://github.com/AyrtonAlmada/PowerGridREserach)  
+**EMT reference software:** [NatLabRockies/ParaEMT_public](https://github.com/NatLabRockies/ParaEMT_public)
+
+Historical Israel studies and WECC240 experiments are stored separately. Each
+released experiment should identify its input files, model parameters, solver
+settings, random seeds, and source-code revision.
 
 ## Release status
 
-This update is a **release candidate**, not an archived reproduction of the paper.
-The attached source and case files are included unchanged under `legacy/source/`
-and `data/wecc240/`. The author reports that the **1,150 EMT calibration
-trajectories** are ready for deposition; they are not included in this package.
-The exact ParaEMT commit used for those trajectories has not yet been recovered.
-No DOI, completed calibration rerun, or measured speedup is claimed here.
+This README specifies the phase-endpoint noise model below and documents
+**`:stratonovich_heun`** as the stochastic trajectory backend.
 
-The Julia implementation was reviewed, but not executed in the preparation
-environment, which did not contain Julia. Run `test/runtests.jl` locally before
-launching an ensemble. `docs/VALIDATION_STATUS.md` records the checks actually run.
+**Implementation alignment:** this README update does not change the Julia
+module. Its noise-construction routine and experiment configuration must be
+updated to produce the stated lower-right-block matrices before running this
+model. Selecting the integration backend alone does not select or change the
+noise matrix. The matrix checks in the example below prevent an incompatible
+configuration from running unnoticed.
 
-## What is implemented
+The 1,150 calibration reference trajectories are prepared for deposition but
+are not included in the release-candidate package. The exact ParaEMT revision
+used to generate them remains to be recorded. The package's Julia tests have
+not been executed in the preparation environment; local test results and the
+resolved Julia environment must accompany a reproducible release.
 
-- Import of the supplied processed branch/bus CSVs with explicit bus-ID maps.
-- The `[omega; theta]` state ordering, nominal and open-phase swing matrices,
-  equilibrium recomputation, and a single reclosure switch.
-- Deterministic affine propagation and two explicitly distinguished stochastic
-  backends, described below.
-- Per-line cumulative overload durations, global scores, and phase-separation
-  diagnostics calculated on the actual trajectory times.
-- The supplied **unweighted-elite CE adaptation**, using a categorical line law
-  and one shared exponential duration **rate**.
-- Fresh final importance samples using **both** learned proposal components,
-  with SE, relative SE, ESS, maximum normalized weight and complete sample logs.
+## Workflow
 
-A calibration optimizer, EMT fault-insertion runner, and figure-generation
-pipeline were not included in the current source attachments. Add the actual
-scripts that generated the paper, rather than describing those components as
-already reproduced by this package.
+```text
+ParaEMT reference trajectories
+              ↓
+EMT-informed parameter calibration
+              ↓
+Stratonovich surrogate trajectories
+              ↓
+Line-specific and global overload durations
+              ↓
+Importance-weighted probabilities and contingency rankings
+```
 
-## Repository layout
+The surrogate parameters describe the physical reduced model. The CEM proposal
+parameters describe how contingencies are sampled. These are separate inputs:
+adapting a proposal does not recalibrate the surrogate.
+
+## Repository organization
 
 ```text
 PowerGridREserach/
 ├── README.md
 ├── Project.toml
 ├── PowerGridsFunctions3.jl          # convenience loader
-├── src/PowerGridsFunctions3.jl      # supported simulation + CEM module
-├── config/wecc240.toml             # explicit rerun settings
+├── src/PowerGridsFunctions3.jl      # surrogate, overload metrics, and CEM
+├── config/wecc240.toml             # experiment settings
 ├── examples/wecc240/
 ├── scripts/
 │   ├── run_wecc_cem.jl
@@ -57,43 +65,228 @@ PowerGridREserach/
 │   └── index_calibration.py
 ├── test/runtests.jl
 ├── data/wecc240/
-│   ├── upstream/                  # original .raw, .xls, and .json
-│   ├── processed/                 # branch240E3.csv, bus240E3.csv
-│   ├── metadata/                  # checks, ID maps, manifest template
+│   ├── upstream/                   # original ParaEMT case inputs
+│   ├── processed/                  # surrogate branch and bus tables
+│   ├── metadata/                   # mappings, manifests, and input audit
 │   └── calibration/
-│       ├── emt/                   # 1,150 reference trajectories: pending
-│       └── surrogate/             # separate reduced-model outputs
-├── results/wecc240/               # new run directories; no archived results here
+│       ├── emt/                    # reference trajectories
+│       └── surrogate/              # reduced-model trajectories
+├── results/wecc240/                # separate directory for each run
 ├── legacy/
-│   ├── source/                    # exact supplied .jl and CEM.txt
-│   └── israel/                    # move existing Israel tree here; see migration
-├── provenance/                    # input hashes, ParaEMT provenance template
+│   ├── israel/                     # preserved historical case studies
+│   └── source/                     # original supplied source files
+├── provenance/
 ├── docs/
-└── manuscript/                    # DAS, acknowledgments and references
+└── manuscript/
 ```
 
-`legacy/israel/` is a migration destination. This package does not contain a copy
-of your existing remote Israel results and does not move or overwrite them.
-Follow [MIGRATION.md](docs/MIGRATION.md) before merging these files.
+Follow [MIGRATION.md](docs/MIGRATION.md) to move the existing Israel folders
+without discarding their history or results. The release-candidate package does
+not contain a replacement copy of those historical results.
 
-## Installation and first check
+## Network and state variables
 
-Use a dedicated Julia project; do not install packages from inside library code.
-The declared compatibility is Julia 1.10/1.11, CSV 0.10, and DataFrames 1.6 or later
-within major version 1. These are compatibility ranges, not a resolved lockfile.
+The reduced state uses the ordering
+
+$$
+X_t=\begin{bmatrix}\omega_t\\\theta_t\end{bmatrix}
+\in\mathbb R^{2n},
+$$
+
+where `n` is the number of modeled nodes, `omega` is the frequency-deviation
+state, and `theta` contains phase angles in a consistently defined reference
+frame. The nominal drift is
+
+$$
+A=\begin{bmatrix}
+-M^{-1}D & -M^{-1}L\\
+I & 0
+\end{bmatrix},
+\qquad
+b(z)=\begin{bmatrix}M^{-1}p(z)\\0\end{bmatrix}.
+$$
+
+Here, `M` and `D` are diagonal effective inertia and damping matrices, `L` is
+the weighted network Laplacian, and `p(z)` is the power-injection vector for
+operating state `z`. These are the effective parameters of the supplied reduced
+model, not automatically the detailed machine parameters in the EMT model.
+
+The processed inputs contain **243 bus rows and 248 branch rows**. The supplied
+ParaEMT JSON contains **243 buses, 329 lines, and 122 transformers**. The processed
+branch graph has **70 connected components**; its topology is not silently
+completed by adding missing elements. The input audit records these differences
+and the supplied effective inertia and damping values.
+
+Original bus IDs and state indices are distinct. Use `bus_map.csv` and
+`branch_map.csv` when matching trajectories, fault labels, and original case
+files. Input schemas are documented in [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).
+
+## Piecewise stochastic surrogate
+
+For a faulted line `e = (i,j)`, let its endpoint set be
+$\partial e=\{i,j\}$. With pole opening at time zero, the model is
+
+$$
+\begin{cases}
+dX_t=\bigl[A_e(\alpha)X_t+b(z)\bigr]dt
++\displaystyle\sum_{r\in\partial e}
+G_{e,r}(\sigma_{e,z,r})X_t\circ dW_t^r,
+&0\leq t<T_{\mathrm{op}},\\[2mm]
+\dot X_t=AX_t+b(z),
+&T_{\mathrm{op}}<t\leq T_{\mathrm{hor}}.
+\end{cases}
+$$
+
+The state is continuous at reclosure. The independent Wiener drivers act only
+during the open-phase interval. The affected line has effective coupling
+$\alpha\beta_e$ during that interval and nominal coupling $\beta_e$ afterward.
+
+The code's time arguments are:
+
+| Argument | Meaning |
+|---|---|
+| `T1` | Pole-opening time |
+| `T2` | Reclosure time |
+| `T2 - T1` | Open-phase duration |
+| `T3` | Final evaluation or screening time |
+| `saveat` | Spacing of saved trajectory observations |
+| `dt` | Maximum internal integration step during stochastic propagation |
+
+When reclosure occurs after `T3`, the altered network remains active throughout
+the observed interval. The original duration draw remains unchanged in the
+importance-sampling likelihood ratio.
+
+### Localized phase-endpoint noise
+
+For the common-amplitude model, the endpoint amplitudes satisfy
+$\sigma_{e,z,i}=\sigma_{e,z,j}=\sigma$. The noise matrix is
+
+$$
+G_{e,r}(\sigma_{e,z,r})=
+\begin{bmatrix}
+0 & 0\\
+0 & \sigma M^{-1}\mathbf e_r\mathbf e_r^{\mathsf T}
+\end{bmatrix},
+\qquad r\in\partial e,
+$$
+
+where $\mathbf e_r$ is the `r`th canonical vector in $\mathbb R^n$ and
+$M=\operatorname{diag}(m_1,\ldots,m_n)$, with $m_r>0$. For independent endpoint
+amplitudes, replace `sigma` by the corresponding $\sigma_{e,z,r}$ in each matrix.
+
+With the state ordering above, each matrix is diagonal and rank one for nonzero
+amplitude, with its only nonzero entry at
+
+$$
+[G_{e,r}]_{n+r,n+r}=\frac{\sigma}{m_r}.
+$$
+
+**The noise acts on phase, not frequency.** Its contribution to the phase equation
+is
+
+$$
+d\theta_t=\omega_t\,dt+
+\sum_{r\in\partial e}\frac{\sigma}{m_r}
+\mathbf e_r\theta_r(t)\circ dW_t^r.
+$$
+
+Consequently, `omega` is the frequency-deviation state supplying the phase drift;
+it is not the pathwise derivative of the noisy phase process.
+
+This model depends on the phase reference: multiplying absolute phase coordinates
+does not preserve invariance under adding a common constant to every phase.
+Calibration data, initial conditions, and surrogate runs must use the same fixed
+reference convention. The existing initialization chooses the minimum-norm
+pre-fault solution of $L\theta_0=p(z)$ when that equation is consistent, with
+zero initial frequency deviations. Do not re-center or wrap the saved phase
+trajectories to change this convention after simulation.
+
+The diffusion coefficient $\sigma/m_r$ must have units
+$\mathrm{s}^{-1/2}$. If `M` is dimensionless in the adopted normalization, `sigma`
+also has those units; otherwise its units must include the inertia scaling.
+Record that normalization alongside the fitted amplitudes.
+
+### Stratonovich integration
+
+The stochastic trajectory backend is selected explicitly:
+
+```julia
+backend = :stratonovich_heun
+```
+
+The predictor and corrector use the **same Wiener increments** within each step.
+For an open-phase step of length `h`, the scheme is
+
+$$
+\widetilde X=X_n+h f(X_n)+\sum_rG_{e,r}X_n\Delta W_n^r,
+$$
+
+$$
+X_{n+1}=X_n+\frac h2\bigl[f(X_n)+f(\widetilde X)\bigr]
++\frac12\sum_rG_{e,r}(X_n+\widetilde X)\Delta W_n^r,
+\qquad \Delta W_n^r\sim\mathcal N(0,h),
+$$
+
+where $f(X)=A_e(\alpha)X+b(z)$. The integrator lands on opening and reclosure
+times rather than taking a stochastic step across a switching event. After
+reclosure, propagation uses the nominal affine dynamics without further noise.
+
+`dt` and `saveat` have different roles. For example, `dt=0.001` and `saveat=0.01`
+use internal steps no larger than 0.001 s while saving observations every 0.01 s,
+with switching times also retained. Report both settings and check step-size
+convergence before interpreting calibrated parameters or overload probabilities.
+
+### Deterministic moment propagation
+
+The equivalent Itô drift during the open-phase interval is
+
+$$
+A_{e,\mathrm I}=A_e(\alpha)+\frac12\sum_{r\in\partial e}G_{e,r}^{\,2}.
+$$
+
+For the specified matrices, this correction belongs to the phase--phase block.
+It changes the mean dynamics but is not, in general, a scalar change in the line
+coupling parameter `alpha`.
+
+The mean $\mu=\mathbb E[X_t]$ and covariance $\Sigma$ satisfy
+
+$$
+\dot\mu=A_{e,\mathrm I}\mu+b(z),
+$$
+
+$$
+\dot\Sigma=A_{e,\mathrm I}\Sigma+\Sigma A_{e,\mathrm I}^{\mathsf T}
++\sum_{r\in\partial e}G_{e,r}
+(\Sigma+\mu\mu^{\mathsf T})G_{e,r}^{\mathsf T}.
+$$
+
+After reclosure, the drift is `A` and the diffusion terms are absent. The function
+`moment_rhs(...; convention=:stratonovich)` evaluates these right-hand sides for
+the matrices supplied to it. It is not the calibration optimizer itself.
+
+The Itô correction is used when forming Itô moment equations. It must not be added
+a second time to the Stratonovich drift supplied to the Heun integrator.
+
+## Installation and model checks
+
+From the repository root:
 
 ```sh
 julia --project=. -e 'using Pkg; Pkg.instantiate()'
 julia --project=. test/runtests.jl
-julia --project=. examples/wecc240/single_trajectory.jl
 ```
 
-On Windows PowerShell the same commands work; use double quotes around the Julia
-expression when required by your shell. Commit the **actual generated
-`Manifest.toml`** after successful tests and include it in the archived release.
-Do not construct a lockfile by hand or run `Pkg.update()` when reproducing a release.
+Retain the actual generated `Manifest.toml` with the tested release. The existing
+tests must also be updated to check the phase-endpoint matrices specified here;
+a passing test of a different noise matrix is not validation of this model.
 
-Interactive use:
+The matrix-construction requirement is straightforward: for each endpoint `r`,
+create a `2n`-by-`2n` zero matrix and set its `(n+r,n+r)` entry to `sigma/m_r`.
+This construction must be used by both `prepare_contingency` and the contingencies
+created within `make_surrogate_score`.
+
+The example below assumes that update has been made. Its explicit matrix check
+stops execution if the builder still returns a different noise structure.
 
 ```julia
 using CSV, DataFrames, Random
@@ -103,221 +296,205 @@ case = load_case(
     "data/wecc240/processed/branch240E3.csv",
     "data/wecc240/processed/bus240E3.csv"
 )
-df, df2 = case.df, case.df2
 
-# Deterministic smoke test. The scaled operating state is used consistently.
-system = prepare_system(df, df2; injection_scale=1.02)
-contingency = prepare_contingency(system, 1; alpha=0.516, sigma=0.0)
-DFX = simulate_trajectory(contingency;
-    T1=0.0, T2=0.7, T3=2.5, saveat=0.01, include_frequency=true)
-Sij = line_overload_indicators(DFX, df)
-S = sum(Sij.Sij)
+system = prepare_system(case.df, case.df2; injection_scale=1.02)
+line_row = 1
+alpha = 0.516
+sigma = 1.5
+
+# Requires the phase-endpoint matrix construction documented above.
+contingency = prepare_contingency(system, line_row; alpha, sigma)
+
+n = system.n
+endpoints = (Int(case.df.From[line_row]), Int(case.df.To[line_row]))
+expected_G = [zeros(Float64, 2n, 2n) for _ in endpoints]
+for (k, r) in enumerate(endpoints)
+    expected_G[k][n+r, n+r] = sigma / system.df2.Inertia[r]
+end
+
+@assert length(contingency.G) == length(expected_G)
+for k in eachindex(expected_G)
+    @assert isapprox(contingency.G[k], expected_G[k]; atol=1e-12, rtol=1e-12) "Noise matrix does not match the README model."
+end
+
+DFX = simulate_trajectory(
+    contingency;
+    T1=0.0,
+    T2=0.7,
+    T3=2.5,
+    saveat=0.01,
+    dt=0.001,
+    backend=:stratonovich_heun,
+    rng=Xoshiro(2026),
+    include_frequency=true
+)
 ```
 
-Output phase columns are `x1`, ..., `x243` for the supplied inputs. Optional
-frequency columns are `omega1`, ..., `omega243`; `Time` contains the actual
-sampling instants. An original bus label is **not** its state index; use the
-exported `bus_map.csv` and `branch_map.csv`.
+These parameter values specify the example run; changing the model or integration
+method does not establish that an earlier calibration remains valid. Match each
+reported parameter set to its actual model definition and validation records.
 
-## Important input facts
+The output contains phase columns `x1`, ..., `xn`, optional frequency columns
+`omega1`, ..., `omegan`, and `Time`. Reclosure is saved once. When changing the
+operating point, scale the nominal power-injection vector and recompute the
+initial equilibrium; use that same scaled operating state in all intervals.
 
-The supplied processed case contains **243 bus rows and 248 branch rows**.
-The supplied ParaEMT JSON contains **243 buses, 329 lines, and 122 transformers**.
-The processed branch graph has **70 connected components**, including isolated
-nodes. This loader does not silently add missing transformers or collapse the
-case into a connected network. The processed inputs use `m=1` and `d=0.5` at
-every bus; those values are effective model inputs, not imported GENROU inertia
-and damping values.
+## Dynamic overload indicators
 
-See [DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) and the machine-readable
-`data/wecc240/metadata/input_audit.json`. The `.raw`/`.xls`/`.json` to processed-CSV
-transformation script and its choices must be added by the author. A collection
-of files alone does not document that transformation.
+For a monitored line `{i,j}`, the reduced flow proxy is
 
-## Model and backend selection
+$$
+p_{ij}(t)\approx\beta_{ij}[\theta_i(t)-\theta_j(t)].
+$$
 
-For state `X = [omega; theta]`, the uploaded matrices correspond to
+The line score and global score are
 
-```math
-A = \begin{bmatrix}-M^{-1}D & -M^{-1}L\\ I & 0\end{bmatrix},\qquad
-b = \begin{bmatrix}M^{-1}P\\0\end{bmatrix}.
-```
+$$
+S_{ij}=\int_0^{T_{\mathrm{hor}}}
+\mathbb I\{|p_{ij}(t)|>\overline p_{ij}\}\,dt,
+\qquad S=\sum_{\{i,j\}\in\mathcal E_m}S_{ij}.
+$$
 
-`T1` is pole opening, `T2` is reclosure, and `T3` is the screening/evaluation end.
-The open-phase duration is `T2-T1`. The altered coupling is active only in that
-interval. Draws whose reclosure lies beyond `T3` are observed in the open-phase
-configuration throughout the remaining window; the original sampled duration
-is retained in the likelihood ratio.
+The implementation uses a left-endpoint integration rule on the actual saved time
+intervals. `Sij` is cumulative time above a limit; `S` is accumulated line-overload
+time across the monitored set. Neither quantity is a peak-flow value or a direct
+temperature calculation. The endpoint of the saved grid is not counted as an
+additional time interval.
 
-There is no implicit choice of stochastic solver when `sigma > 0`:
-
-| Backend | Meaning | Reproducibility status |
-|---|---|---|
-| `:deterministic` | Affine matrix-exponential propagation; `sigma=0` | Supported deterministic path |
-| `:source_random_map` | Uploaded `make_f1` random-evaluation formula, with explicit RNG | Historical-formula audit, **not an SDE path** |
-| `:stratonovich_heun` | New pathwise Stratonovich predictor-corrector integration | Rerun/step-convergence/calibration required |
-
-The uploaded source uses **phase-difference noise**,
-
-```math
-G_e=\begin{bmatrix}0&\sigma M^{-1}(e_i-e_j)(e_i-e_j)^T\\0&0\end{bmatrix}.
-```
-
-For this matrix `G_e^2 = 0`. In particular, its Stratonovich-to-Itô correction
-does **not** renormalize alpha. The optional `:frequency_endpoints` structure is
-the different diagonal noise model discussed in the manuscript; it must be chosen
-explicitly and is not identified with the uploaded implementation. No claim is
-made that `(0.516, 1.5)` remains calibrated after changing the noise structure or
-solver. The code exposes the distinction instead of silently resolving it.
-
-Example of a **new** pathwise run, not a reproduction of the old random map:
-
-```julia
-c = prepare_contingency(system, 1;
-    alpha=0.516, sigma=1.5, noise_structure=:phase_difference)
-path = simulate_trajectory(c;
-    T1=0.0, T2=0.5, T3=2.5, saveat=0.01, dt=0.001,
-    backend=:stratonovich_heun, rng=Xoshiro(2026))
-```
-
-`saveat` is the output grid; `dt` is the Heun internal step. Reclosure is included
-exactly once. In `:source_random_map`, changing `saveat` changes the sequence of
-independent random evaluations, not merely the display resolution.
-
-`moment_rhs` supplies the linear-SDE mean/covariance equations with the declared
-calculus convention. It is not an implementation of the manuscript's calibration
-optimizer, and those SDE moments must not be attributed to `:source_random_map`.
-
-## Overload definition
-
-The code uses the strict comparison `abs(beta_ij * (theta_i-theta_j)) > F_ij` and
-integrates the Boolean indicator with a **left-endpoint rule on actual time
-intervals**. It does not count the final endpoint as an additional interval.
-The global score is the sum of line durations, not a peak-flow or temperature
-measure. The primary output uses nominal monitored-line coefficients as in the
-manuscript; it does not implement a time-varying three-phase line-flow model.
-
-Large phase differences invalidate the small-angle interpretation of this flow
-proxy. `phase_difference_diagnostics` reports per-path maxima and time fractions;
-these time fractions are not fractions of the contingency ensemble. No wrapping
-or post hoc shrinking of phase differences is performed.
+The primary output uses nominal monitored-line coefficients. Large phase
+separations limit the validity of the linearized flow proxy.
+`phase_difference_diagnostics` records per-path maxima and temporal exceedance
+fractions; these are not ensemble probabilities. Severe cases require appropriate
+nonlinear or EMT-level assessment.
 
 ## Cross-entropy importance sampling
 
-The source algorithm is retained as an **unweighted elite search**: 250 pilot
-samples per iteration, 20 iterations, 25 elites, and retention factor `kappa=0.9`.
-It is not a likelihood-ratio-weighted rare-event CE fit. It fits categorical
-probabilities `phi` and one shared exponential **rate** `r`; it does not fit a
-separate rate for every line. The factorized proposal does not learn dependence
-between line and duration.
+The implementation uses unweighted elite-based adaptation: 250 samples per
+iteration, 20 iterations, 25 elites, and retention factor `kappa=0.9`. It learns
+categorical fault probabilities `phi` and one shared exponential duration **rate**
+`r`. This factorized proposal does not learn line--duration dependence and is not
+a likelihood-ratio-weighted CE adaptation.
 
-The final law is `phi = res.π`, `r = res.r`. With uniform nominal line selection,
+The final estimation law retains **both learned components**, `res.π` and `res.r`.
+With uniform nominal fault selection and nominal duration rate `lambda0`,
 
-```math
-w_k=\frac{\lambda_0}{E\phi_{e_k}r}\exp[(r-\lambda_0)\tau_k].
+$$
+p_Z(e,\tau)=\frac1E\lambda_0e^{-\lambda_0\tau},\qquad
+q(e,\tau)=\phi_e r e^{-r\tau},
+$$
+
+$$
+w_k=\frac{\lambda_0}{E\phi_{e_k}r}
+\exp[(r-\lambda_0)\tau_k].
+$$
+
+The implementation draws exponential durations using `randexp(rng)/r`. It uses a
+fresh final batch with the same conditional stochastic-driver law as the nominal
+model, so no additional driver likelihood factor is required. The current
+assessment is conditioned on a fault; it does not sample a no-fault category.
+
+All surrogate randomness must use the RNG passed to the scorer. Failed or
+nonfinite solves raise an error rather than contributing a safe-event indicator.
+Final estimates use ordinary importance weights, not self-normalized weights, and
+are not clipped to `[0,1]`. Zero observed events do not establish zero risk.
+
+In the experiment configuration, set:
+
+```toml
+backend = "stratonovich_heun"
 ```
 
-All exponential sampling uses `randexp(rng)/r`. Ordinary IS is not self-normalized;
-finite-sample estimates are never clipped to `[0,1]`. Final samples and seeds are
-saved. Samples with failed/nonfinite solver scores raise an error rather than being
-counted as safe. Zero hits produce an estimate of zero but an **unavailable** error
-estimate, not a claimed zero-risk confidence statement.
+Also align the matrix-construction settings with the phase-endpoint model before
+running the driver. The existing configuration is not updated by editing this
+README. Once the builder, configuration, and tests agree, the run command is:
 
 ```sh
-julia --project=. scripts/run_wecc_cem.jl config/wecc240.toml results/wecc240/runs/my-new-run
+julia --project=. scripts/run_wecc_cem.jl config/wecc240.toml results/wecc240/runs/wecc-run-001
 ```
 
-Start with a small final batch while checking the configuration. That script
-uses distinct adaptation and estimation streams and the same frozen proposal for
-all requested thresholds. The adaptation budget is therefore counted **once for
-that run**, not once per row of its summary table. Change the configuration and
-output directory for a separate experiment.
+Start with a small final batch. Use a new output directory for every run. The
+driver uses separate adaptation and estimation streams and can evaluate several
+thresholds from the same final batch. In that case, adaptation is counted once,
+not once for each threshold row. The scorer and its cached contingency models
+are serial; do not share the mutable cache or RNG across worker threads.
 
-The integration is serial; do not share its mutable cache or RNG across threads.
-See [REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) for run records and benchmark rules.
-A seed is not a substitute for saved samples and a pinned Julia environment;
-Julia's RNG stream can change across versions [Julia RNG documentation].
+## Saved outputs and reproducibility
 
-### Saved outputs
+| File | Contents |
+|---|---|
+| `summary.csv` | Final sample count, estimate, SE, relative SE, ESS, maximum normalized weight, event ESS, hit count, and stage times |
+| `final_samples.csv` | Sampled line, duration, score, driver seed, and log-weight |
+| `pilot_samples.csv` | Adaptation samples and elite flags |
+| `adaptation_history.csv` | Iteration-level scores, thresholds, and rate history |
+| `adaptation_phi.csv` | Categorical proposal history |
+| `proposal.csv` | Frozen line probabilities and shared duration rate |
+| `run.toml` | Experiment settings, seeds, environment, timing scope, and source/input hashes |
+| `bus_map.csv`, `branch_map.csv` | State-index and original-case mappings |
+| `checksums.csv` | Checksums of saved run files |
+| `Project.toml`, `Manifest.toml` | Project specification and resolved environment when available |
 
-`summary.csv` contains `N_final`, `N_adapt`, `N_total`, `phat`, `se`,
-`relative_se`, `ESS`, `max_normalized_weight`, `event_ESS`, `hits`, and stage times.
-`final_samples.csv` contains durations, line indices, scores, driver seeds, and
-log-weights. Pilot samples, elite flags, every categorical update, and the frozen
-proposal are saved separately. `run.toml` records settings, source and input hashes,
-Julia/BLAS/thread information, and the declared timing scope. File writing is not
-included in the simulation/estimation timer. No old runtimes are reused as new
-measurements.
+Preserve samples as well as seeds. Record the phase reference, mass normalization,
+state ordering, endpoint amplitudes, opening and reclosing times, internal `dt`,
+output `saveat`, and event-comparison convention. Keep the exact source revision
+that generated each result.
 
-## Calibration archive and version provenance
+Record adaptation and estimation runtimes separately, including compilation and
+initialization policies. The current run driver times computation separately
+from file serialization. Read [REPRODUCIBILITY.md](docs/REPRODUCIBILITY.md) for the
+run-record specification and [VALIDATION_STATUS.md](docs/VALIDATION_STATUS.md) for
+the checks completed during preparation. Those records must be updated when the
+phase-endpoint implementation is tested.
 
-The base calibration archive is **25 selected faults x 46 operating scales**
-(`0.75:0.01:1.20`) at its documented fixed switching/evaluation configuration.
-A separate 15-duration sweep contains **17,250** cases. Neither count describes
-the number of independent noise realizations unless the manifest says so.
+## Calibration archive and ParaEMT provenance
 
-The author must provide the exact 25-line list, train/validation/test membership,
-EMT channel projection and units, physical settings, solver commit, and file hashes.
-Do not infer these from plot labels. Keep EMT references and surrogate trajectories
-in separate directories even when an older filename starts with `ParaEMTDF`.
+The base calibration set contains **25 selected faulted lines × 46 operating
+scales**, with scales `0.75:0.01:1.20`, at the recorded switching and evaluation
+settings. A separate sweep over 15 open-phase durations contains **17,250** cases.
+Neither count determines the number of independent stochastic realizations.
 
-Populate `calibration_manifest.template.csv` with real records, then run:
+Keep EMT references and surrogate outputs in different directories. A historical
+filename beginning with `ParaEMTDF` does not identify the generating simulator.
+Each manifest entry must record that source, the exact line mapping, operating
+scale, time settings, projection/units, train/test assignment, and checksum.
+
+After filling the calibration metadata with the actual trajectory records:
 
 ```sh
 python scripts/index_calibration.py --metadata YOUR_METADATA.csv --data-root . --output data/wecc240/metadata/calibration_manifest.csv --require-1150
 ```
 
-To pin ParaEMT, run the following in the **actual ParaEMT environment and checkout**:
+Capture ParaEMT provenance from the checkout and Python environment that generated
+the reference trajectories:
 
 ```sh
-python scripts/capture_paraemt_provenance.py /path/to/ParaEMT_public provenance/paraemt/run-record --run-label calibration-release
+python scripts/capture_paraemt_provenance.py /path/to/ParaEMT_public provenance/paraemt/calibration-run --run-label wecc240-calibration
 ```
 
-This records the full commit, local patch, file hashes and Python environment.
-Do not substitute the current `main` commit for the version used in older runs.
-See [PARAEMT_PROVENANCE.md](docs/PARAEMT_PROVENANCE.md).
+This records the full commit, local modifications, input/source hashes, and Python
+environment. The upstream `main` URL is a project link, not a historical version
+identifier. Use the actual recorded commit in the release citation. See
+[PARAEMT_PROVENANCE.md](docs/PARAEMT_PROVENANCE.md).
 
-## Archiving, availability and citation
+The final reproducibility archive must also include the raw-to-processed case
+transformation, EMT switching and projection scripts, calibration optimizer, and
+analysis scripts used to generate figures and tables. These were not all present
+in the supplied source package.
 
-Keep large reference trajectories in a versioned data archive, with a manifest and
-checksums in this repository. Freeze the code with a Git tag and archive that exact
-release with a DOI. Link the code release and dataset version in both directions.
-GitHub documents [release archiving through Zenodo]; APS requests citations for
-public data/software in its [Data Availability guidelines]. A DOI has not been
-issued for this package.
+## Data availability, citations, and licensing
 
-The draft and after-release manuscript statements are in `manuscript/`; do not
-use the after-release wording before the data and code are actually deposited.
+Freeze the tested code as a versioned release and archive the associated reference
+data with a manifest and checksums. Link the code release and data archive in both
+directions. Fill the release identifiers in `manuscript/references.bib` and use
+the after-release Data Availability statement only after the listed materials
+are publicly accessible.
 
-Related papers:
-- *Real-Time Stochastic Assessment of Dynamic N-1 Grid Contingencies*,
-  arXiv:2510.18007.
-- *Real-Time Dynamic N-1 Screening: Identifying High-Risk Lines and Transformers
-  After Common Faults*, arXiv:2602.12293.
-- M. Xiong et al., *ParaEMT: An Open Source, Parallelizable, and HPC-Compatible EMT
-  Simulator for Large-Scale IBR-Rich Power Grids*, IEEE Transactions on Power
-  Delivery 39, 911–921 (2024).
-- M. Xiong et al., *An Open-Source Parallel EMT Simulation Framework*, Electric
-  Power Systems Research 235, 110734 (2024).
+Related work and reference software are listed in the manuscript bibliography,
+including the N1Plus studies and the ParaEMT publications. Preserve upstream
+notices for the original case files and distinguish third-party licensing from
+the license governing this project's own code. The repository's license template
+must be completed by the rights holders before release.
 
-Use the exact release/version citations in `manuscript/references.bib` when they
-have been completed. Do not invent a DOI or claim the pending calibration archive
-is already publicly available.
-
-## Licensing and responsible use
-
-The existing project README declares MIT licensing. Preserve the authors' licensing
-choice and add the complete license text with the correct copyright holders before
-release. `LICENSE.template` is deliberately not an executed license declaration.
-ParaEMT is distributed under BSD-3-Clause terms; its notice is kept with the upstream
-inputs. Preserve any additional case-specific notices. Confirm rights before
-publicly redistributing third-party case files or Israel data; otherwise provide
-pinned acquisition instructions and checksums instead.
-
-This is research software, not a protection relay implementation or an operational
-security certification. Classifications and overload thresholds must be explained
-in the corresponding study, not treated as universal grid requirements.
-
-[Julia RNG documentation]: https://docs.julialang.org/en/v1/stdlib/Random/#Reproducibility
-[release archiving through Zenodo]: https://docs.github.com/en/repositories/archiving-a-github-repository/referencing-and-citing-content
-[Data Availability guidelines]: https://journals.aps.org/authors/data-availability-statements
+This software supports research into contingency screening. It is not a protection
+relay implementation or an operational security certification. Probability-zone
+boundaries and overload-duration thresholds must be identified for each study;
+they are not universal protection requirements.
