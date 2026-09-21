@@ -134,12 +134,10 @@ $`\partial e=\{i,j\}`$. With pole opening at time zero, the model is
 
 ```math
 \begin{cases}
-
-\displaystyle dX_t = \bigl[A_e(\alpha)X_t+b(z)\bigr]\,dt + \sum_{r\in\partial e}G_{e,r}(\sigma_{e,z,r})X_t\circ dW_t^r,
+dX_t = \bigl[A_e(\alpha)X_t+b(z)\bigr]\,dt + \sum_{r\in\partial e}G_{e,r}(\sigma_{e,z,r})X_t\circ dW_t^r,
 & 0\leq t<T_{\mathrm{op}}, \\
-\displaystyle \dot{X}_t = AX_t+b(z),
+\dot{X}_t = AX_t+b(z),
 & T_{\mathrm{op}}<t\leq T_{\mathrm{hor}}.
-
 \end{cases}
 ```
 
