@@ -24,8 +24,13 @@ model. Selecting the integration backend alone does not select or change the
 noise matrix. The matrix checks in the example below prevent an incompatible
 configuration from running unnoticed.
 
-The 1,150 calibration reference trajectories are prepared for deposition but
-are not included in the release-candidate package. The exact ParaEMT revision
+The ParaEMT calibration reference dataframes and the corresponding surrogate
+dataframes are now available in the repository as ZIP archives. The reference
+archives are stored in
+[`data/wecc240/calibration/emt/`](data/wecc240/calibration/emt/), and the
+surrogate archives are stored in
+[`data/wecc240/calibration/surrogate/`](data/wecc240/calibration/surrogate/).
+Each directory contains 14 ZIP archives. The exact ParaEMT revision
 used to generate them remains to be recorded. The package's Julia tests have
 not been executed in the preparation environment; local test results and the
 resolved Julia environment must accompany a reproducible release.
@@ -69,8 +74,8 @@ PowerGridREserach/
 │   ├── processed/                  # surrogate branch and bus tables
 │   ├── metadata/                   # mappings, manifests, and input audit
 │   └── calibration/
-│       ├── emt/                    # reference trajectories
-│       └── surrogate/              # reduced-model trajectories
+│       ├── emt/                    # ParaEMT1.zip through ParaEMT14.zip
+│       └── surrogate/              # Surrogate1.zip through Surrogate14.zip
 ├── results/wecc240/                # separate directory for each run
 ├── legacy/
 │   ├── israel/                     # preserved historical case studies
@@ -455,12 +460,28 @@ scales**, with scales `0.75:0.01:1.20`, at the recorded switching and evaluation
 settings. A separate sweep over 15 open-phase durations contains **17,250** cases.
 Neither count determines the number of independent stochastic realizations.
 
+The calibration dataframes are stored as ZIP archives because of the number
+and total size of the CSV files:
+
+| Data source | Repository directory | Available archives |
+|---|---|---|
+| ParaEMT reference trajectories | [`data/wecc240/calibration/emt/`](data/wecc240/calibration/emt/) | `ParaEMT1.zip` through `ParaEMT14.zip` (14 archives) |
+| Surrogate trajectories | [`data/wecc240/calibration/surrogate/`](data/wecc240/calibration/surrogate/) | `Surrogate1.zip` through `Surrogate14.zip` (14 archives) |
+
+Download the required archives from the appropriate directory and extract
+each into its own subdirectory, named after the archive, to avoid overwriting
+files with matching names. For example, extract `ParaEMT1.zip` into
+`data/wecc240/calibration/emt/ParaEMT1/` and `Surrogate1.zip` into
+`data/wecc240/calibration/surrogate/Surrogate1/`. Match reference and surrogate
+trajectories using their scenario identifiers and metadata, not ZIP numbers.
+
 Keep EMT references and surrogate outputs in different directories. A historical
 filename beginning with `ParaEMTDF` does not identify the generating simulator.
 Each manifest entry must record that source, the exact line mapping, operating
 scale, time settings, projection/units, train/test assignment, and checksum.
 
-After filling the calibration metadata with the actual trajectory records:
+After extraction, fill the calibration metadata with the trajectory records
+and paths to the extracted CSV files, then run:
 
 ```sh
 python scripts/index_calibration.py --metadata YOUR_METADATA.csv --data-root . --output data/wecc240/metadata/calibration_manifest.csv --require-1150
@@ -484,6 +505,10 @@ analysis scripts used to generate figures and tables. These were not all present
 in the supplied source package.
 
 ## Data availability, citations, and licensing
+
+The ParaEMT reference and surrogate calibration dataframes are publicly
+accessible in the ZIP archives linked under
+[Calibration archive and ParaEMT provenance](#calibration-archive-and-paraemt-provenance).
 
 Freeze the tested code as a versioned release and archive the associated reference
 data with a manifest and checksums. Link the code release and data archive in both
