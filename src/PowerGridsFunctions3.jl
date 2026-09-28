@@ -16,7 +16,7 @@ export load_case, validate_case, Laplatian, XiMass, initial_state,
        diagnostics_from_logweights, estimates_from_batch, save_run, run_cem,
        file_sha256, scenario_filename
 
-const IMPLEMENTATION_VERSION = "wecc-release-candidate-1"
+const IMPLEMENTATION_VERSION = "wecc-phase-endpoints-fix-1"
 
 _check(c, msg) = c || throw(ArgumentError(msg))
 function _positive(x, name)
@@ -205,7 +205,8 @@ function _prepare_altered(system,Df,Df2,sigma,noise_structure)
     changed=findall(Df.Susceptance .!= system.df.Susceptance)
     G=Matrix{Float64}[]; n=system.n
     _nonnegative(sigma,"sigma")
-    _check(noise_structure in (:phase_difference,:frequency_endpoints), "Unknown noise_structure.")
+    _check(noise_structure in (:phase_endpoints, :phase_difference, :frequency_endpoints),
+           "Unknown noise_structure. Use :phase_endpoints, :phase_difference, or :frequency_endpoints.")
     if sigma > 0
         _check(length(changed)==1, "Stochastic correction requires exactly one changed branch.")
         r=only(changed); i,j=Int(Df.From[r]),Int(Df.To[r])
@@ -215,18 +216,39 @@ function _prepare_altered(system,Df,Df2,sigma,noise_structure)
             g=zeros(2n,2n)
             g[1:n,n+1:2n]=sigma.*((1 ./ Float64.(Df2.Inertia)).*(v*v'))
             push!(G,g) # g^2=0; no Stratonovich-to-Ito drift correction
-        else
-            # Explicit alternative discussed in the manuscript, NOT the uploaded G.
+        elseif noise_structure == :frequency_endpoints
+            # Retained for compatibility with explicitly selected earlier runs.
             for endpoint in (i,j)
                 g=zeros(2n,2n);g[endpoint,endpoint]=sigma;push!(G,g)
+            end
+        else # :phase_endpoints
+            # State order is [omega; theta]. Create a separate matrix/driver
+            # for each endpoint, acting on theta_r with coefficient sigma/m_r.
+            # Df2 contains the inertia values used by the altered dynamics.
+            for endpoint in (i, j)
+                g = zeros(Float64, 2n, 2n)
+                g[n + endpoint, n + endpoint] =
+                    Float64(sigma) / Float64(Df2.Inertia[endpoint])
+                push!(G, g)
             end
         end
     end
     return PreparedContingency(system,copy(Df),copy(Df2),A,b,AffinePropagator(A,b),
                                G,noise_structure,Float64(sigma),changed)
 end
+"""
+    prepare_contingency(system, e; alpha=0.516, sigma=0.0,
+                        noise_structure=:phase_endpoints)
+
+Scale the coupling of branch row `e` by `alpha`. The default noise structure
+matches the README phase-endpoint model for state order `[omega; theta]`:
+each endpoint `r` has its own matrix with `G[n+r,n+r] = sigma/Inertia[r]`.
+The trajectory solver uses one independent Wiener increment per matrix.
+For `sigma == 0`, no diffusion matrices are stored. The other noise structures
+are available only by selecting them explicitly for earlier model variants.
+"""
 function prepare_contingency(system::PreparedSystem,e::Integer;
-                             alpha=0.516,sigma=0.0,noise_structure=:phase_difference)
+                             alpha=0.516,sigma=0.0,noise_structure=:phase_endpoints)
     _check(1 <= e <= nrow(system.df),"Line index out of range.")
     _check(isfinite(alpha) && 0 <= alpha <= 1,"alpha must lie in [0,1].")
     Df=copy(system.df);Df[e,:Susceptance]*=alpha
@@ -344,7 +366,7 @@ end
 
 """Compatibility entry point; dimension is local, and original nominal inputs are not mutated."""
 function AnalyticalSolution(df,df2,Df,Df2,T1,T2,T3,value=0.006,bs=0;
-        backend=:unspecified,noise_structure=:phase_difference,dt=0.001,
+        backend=:unspecified,noise_structure=:phase_endpoints,dt=0.001,
         rng=Random.default_rng(),include_frequency=false)
     s=prepare_system(df,df2)
     c=_prepare_altered(s,Df,Df2,bs,noise_structure)
@@ -401,10 +423,15 @@ function moment_rhs(A,b,Gs,mu,Sigma;convention=:stratonovich)
     return dmu,dSigma
 end
 
-"""Build an RNG-aware score with explicit physical parameters and lazily cached line models."""
+"""
+Build an RNG-aware score with explicit physical parameters and lazily cached line
+models. The default `:phase_endpoints` structure is the same as the default in
+`prepare_contingency`; it is passed to every cached contingency. Select
+`backend=:stratonovich_heun` explicitly when `sigma` is nonzero.
+"""
 function make_surrogate_score(df,df2;alpha=0.516,sigma=0.0,injection_scale=1.0,
         T1=0.0,T3=10.0,saveat=0.01,dt=0.001,backend=:unspecified,
-        noise_structure=:phase_difference)
+        noise_structure=:phase_endpoints)
     system=prepare_system(df,df2;injection_scale)
     cache=Dict{Int,PreparedContingency}() # serial API; not thread-safe by design
     return function(rng::AbstractRNG,tau::Real,e::Integer)
