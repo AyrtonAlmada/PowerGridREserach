@@ -301,6 +301,8 @@ stops execution if the builder still returns a different noise structure.
 using CSV, DataFrames, Random
 include("PowerGridsFunctions3.jl")
 
+using .PowerGridsFunctions3
+
 case = load_case(
     "data/wecc240/processed/branch240E3.csv",
     "data/wecc240/processed/bus240E3.csv"
