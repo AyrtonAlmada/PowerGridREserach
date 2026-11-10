@@ -333,7 +333,7 @@ files. Input schemas are documented in [DATA_DICTIONARY.md](docs/DATA_DICTIONARY
 For a faulted line `e = (i,j)`, let its endpoint set be
 $`\partial e=\{i,j\}`$. With pole opening at time zero, the model is
 
-```math
+$$
 \begin{cases}
 dX_t = \bigl[A_e(\alpha)X_t+b(z)\bigr]\,dt
 + \displaystyle\sum_{r\in\partial e}G_{e,r}(\sigma_{e,z,r})X_t\circ dW_t^r,
@@ -341,7 +341,7 @@ dX_t = \bigl[A_e(\alpha)X_t+b(z)\bigr]\,dt
 \dot{X}_t = AX_t+b(z),
 & T_{\mathrm{op}}\leq t\leq T_{\mathrm{end}}.
 \end{cases}
-```
+$$
 
 `T_end` denotes the final time of the particular run: `T_ev` for a finite-time
 state comparison or `T_h` for overload screening. It does not identify those
