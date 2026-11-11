@@ -1,3 +1,7 @@
+
+PowerGridREserach_README_Hierarchy_Temporal_20261111.txt
+
+100%
 # PowerGridREserach — EMT-informed dynamic contingency screening
 
 Julia tools for stochastic electromechanical simulation, cumulative line-overload
@@ -15,11 +19,13 @@ settings, random seeds, and source-code revision.
 ## Release status
 
 This README specifies the phase-endpoint noise model below and documents
-**`:stratonovich_heun`** as the stochastic trajectory backend. It also records
-the corrected line-disjoint calibration/testing partition and the distinct time
-settings used for calibration, hierarchy assessment, and temporal diagnostics
-in Paper 3. The protocol and fault identifiers below supersede earlier README
-descriptions of that partition.
+**`:stratonovich_heun`** as the stochastic trajectory backend. It records the
+line-disjoint calibration/testing partition for the global models `M1/M2`, the
+additional case-specific calibration used by `M3/M4`, and the distinct fitting
+and assessment times in Paper 3. It also incorporates the regenerated temporal
+studies, which use the same random-seed configuration and agree at
+`T_op = T_ev = 1.5 s`. These protocol descriptions and results supersede the
+earlier README treatment of the hierarchy and temporal studies.
 
 **Implementation alignment:** this README update does not change the Julia
 module. Its noise-construction routine and experiment configuration must be
@@ -65,24 +71,38 @@ time settings must not be interchanged.
 
 ## WECC240 calibration and evaluation protocol
 
-Paper 3 distinguishes parameter identification at reclosure from assessment of
-the subsequent transient. Calibration uses **25 faulted lines and 46 pre-fault
-operating states**, with **`T_op = T_ev = 0.8 s`**. The hierarchy comparison in
-Figure 4 uses a **different set of 25 faulted lines**, with **`T_op = 1.5 s`**
-and **`T_ev = 2.5 s`**, over the same 46 injection scales. Figures 9–10 instead
-hold the injections at their nominal values while varying one time parameter.
+Paper 3 separates parameter identification at reclosure from assessment of the
+subsequent transient. The global models `M1/M2` are fitted on **25 calibration
+lines and 46 pre-fault operating states**, with **`T_op = T_ev = 0.8 s`**.
+Their Figure 4 assessment uses **25 disjoint faulted lines** across the same
+46 injection scales, with **`T_op = 1.5 s`** and **`T_ev = 2.5 s`**.
+
+The specialized models `M3/M4` additionally use reference observations from
+those 25 assessment lines at **`T_op = T_ev = 0.8 s`**. `M3` fits **25
+line-specific parameter pairs**, pooling the 46 operating states for each line.
+`M4` fits **25 × 46 = 1,150 line–operating-state-specific pairs**. The parameters
+are then held fixed for the same Figure 4 assessment at `(T_op, T_ev) =
+(1.5, 2.5) s`. Thus, the assessment lines are unseen by the global models but
+have separate, shorter-duration calibration records for the specialized models.
+
+Figures 9–10 retain the global `M2` parameters and nominal injections while
+varying one time parameter. The regenerated studies use the same random-seed
+configuration and both report **`RSE_map` in `[0.068, 0.086]`** at their shared
+setting **`T_op = T_ev = 1.5 s`**.
 
 Figure numbers in this section refer to the Paper 3 manuscript accompanying this
 protocol. They do not refer to the earlier Israel or IEEE 118-bus studies.
 
 | Study | Fault set | Operating states | Open-phase duration `T_op` | State-evaluation time `T_ev` or screening horizon `T_h` |
 |---|---|---|---|---|
-| Calibration/training | 25 training lines listed below | 46 scales, `0.75:0.01:1.20` | `0.8 s` | `T_ev = 0.8 s` |
-| Calibration-hierarchy assessment, Figure 4 | 25 testing lines listed below | 46 scales, `0.75:0.01:1.20` | `1.5 s` | `T_ev = 2.5 s` |
-| Horizon study, Appendix D2 / Figure 9 | 25 testing lines | Nominal injections; scale `1.0` | Fixed at `1.5 s` | `T_ev` varies |
-| Duration study, Appendix D3 / Figure 10 | 25 testing lines | Nominal injections; scale `1.0` | Varies over `0–1.5 s` | Fixed at `T_ev = 1.5 s` |
+| Global calibration, `M1/M2` | 25 `training_lines` listed below | 46 scales, `0.75:0.01:1.20` | `0.8 s` | `T_ev = 0.8 s` |
+| Additional line-specific calibration, `M3` | 25 `testing_lines`; separate calibration records | 46 scales pooled within each line | `0.8 s` | `T_ev = 0.8 s` |
+| Additional case-specific calibration, `M4` | Same 25 `testing_lines`; separate calibration records | One parameter pair for each line and each of the 46 scales | `0.8 s` | `T_ev = 0.8 s` |
+| Common hierarchy assessment, Figure 4 | 25 `testing_lines`, for `M0`–`M4` | All 46 injection scales | `1.5 s` | `T_ev = 2.5 s` |
+| Horizon study, Appendix D2 / Figure 9 | 25 `testing_lines`; fixed `M2` | Nominal injections; scale `1.0` | Fixed at `1.5 s` | `T_ev` varies from `1.5` to `2.5 s` |
+| Duration study, Appendix D3 / Figure 10 | 25 `testing_lines`; fixed `M2` | Nominal injections; scale `1.0` | Varies over `0–1.5 s` | Fixed at `T_ev = 1.5 s` |
 | Illustrative large-excursion transient, Figures 3 and 11 | Recorded `9#4` case | The operating state of that recorded example | `0.5 s` | Figure 3 stops at reclosure; Figure 11 continues to `10 s` |
-| Probabilistic screening | Manuscript catalogue of 329 initiating lines | Operating state specified for the screening run | Sampled from the nominal law or the importance-sampling proposal | `T_h = 10 s` |
+| Probabilistic screening | Manuscript catalogue of 329 initiating lines; fixed `M2` | Operating state specified for the screening run | Sampled from the nominal law or the importance-sampling proposal | `T_h = 10 s` |
 
 ### Operating-state family and purpose of the time settings
 
@@ -108,11 +128,22 @@ operation or fault-inception event.
 
 The hierarchy assessment is deliberately more demanding. Its open-phase duration
 is extended to `1.5 s`, and the state is compared at `2.5 s`, one second after
-reclosure, while the trajectories can still be oscillating. It tests transfer to
-held-out fault locations and a longer disturbance rather than agreement only at
-the calibration time. Both the training and Figure 4 assessment contain
-`25 × 46 = 1,150` line/operating-state combinations. These are two distinct
-scenario collections, not two subsets of one 1,150-scenario collection.
+reclosure, while the trajectories can still be oscillating. All five models use
+the same network-wide observation convention and assessment scenarios, with no
+parameter refitting at the longer-duration endpoint.
+
+For `M1/M2`, this tests transfer to unseen fault locations as well as a longer
+disturbance and later observation. For `M3/M4`, it tests duration and
+observation-time transfer for line identities and operating states already
+represented in their additional `0.8 s` calibration records. Their Figure 4
+errors are therefore not unseen-line prediction errors.
+
+The original global-calibration family, the additional specialized-calibration
+family, and the common Figure 4 assessment each contain `25 × 46 = 1,150`
+line/operating-state cases. They are distinguished by their line catalogue,
+time settings, and role in each model's fit. They are not subsets of one
+1,150-scenario collection, and the later assessment observations are not fitting
+targets for any model.
 
 The illustrated oscillatory response in Figure 11(a) motivates this type of
 post-reclosure assessment, but that example has its own `0.5 s` open-phase
@@ -120,12 +151,17 @@ duration. It is not the run that defines the Figure 4 timing.
 
 ### Training and testing fault identifiers
 
-The partition is **by faulted line**. The two lists are disjoint, while their
-46 injection scales are shared. Accordingly, the global-model test examines
-held-out line locations within the same prescribed operating-state family; it
-is not a test on a disjoint set of injection scales or on a different network.
-The listed order is an identifier record, not a risk ranking or a numerical
-branch-row index.
+The names `training_lines` and `testing_lines` identify the **global `M1/M2`
+partition by faulted line**. The two lists are disjoint, while their 46 injection
+scales are shared. Accordingly, the global-model test examines held-out line
+locations within the same prescribed operating-state family; it is not a test
+on a disjoint set of injection scales or on a different network.
+
+The `testing_lines` catalogue also supplies additional `0.8 s` calibration
+records for `M3/M4`. This does not place those records in the global fit. A line's
+calibration or assessment role depends on the model and the time settings, not
+only on its identifier. The listed order is an identifier record, not a risk
+ranking or a numerical branch-row index.
 
 ```julia
 training_lines = [
@@ -161,26 +197,42 @@ the list position or change the spelling of a stored fault identifier.
 Parameter identification uses the phase-angle and frequency observations at the
 two endpoints of the faulted line (`q = 0`). The first two surrogate moments are
 propagated deterministically and compared with the reference information at
-`0.8 s`. The covariance target is scatter across the **training operating
-states** at fixed training line; it is not an ensemble of repeated random
-ParaEMT runs at an identical operating point. Testing observations do not enter
-the global fit or its covariance target.
+`T_op = T_ev = 0.8 s`. For the global calibration, the covariance target is
+scatter across the **training operating states** at fixed training line; it is
+not an ensemble of repeated random ParaEMT runs at an identical operating point.
+Observations from `testing_lines` do not enter the global `M1/M2` fit or its
+targets. They enter only the separate specialized calibration described below.
 
-| Model | Parameterization |
-|---|---|
-| `M0` | Fixed deterministic baseline: `alpha = 2/3`, `sigma = 0` |
-| `M1` | One globally fitted deterministic coupling; `sigma = 0` |
-| `M2` | One globally fitted coupling and one globally fitted stochastic amplitude |
-| `M3` | Separate parameter pairs for individual faulted lines |
-| `M4` | Separate parameter pairs for individual line–operating-state combinations |
+| Model | Fitted coefficient sets | Calibration observations at `T_op = T_ev = 0.8 s` | Interpretation of Figure 4 assessment |
+|---|---|---|---|
+| `M0` | None; fixed `alpha = 2/3`, `sigma = 0` | No fitting | Fixed-baseline comparison |
+| `M1` | One global coupling; `sigma = 0` | Original 25 `training_lines` × 46 operating states | Unseen-line, duration, and observation-time transfer |
+| `M2` | One global `(alpha, sigma)` pair | Same original global-calibration family | Unseen-line, duration, and observation-time transfer |
+| `M3` | 25 `(alpha_e, sigma_e)` pairs | Additional observations on the 25 `testing_lines`; each line's 46 states are fitted jointly | Duration and observation-time transfer for calibrated lines |
+| `M4` | 1,150 `(alpha_ez, sigma_ez)` pairs | Same additional line/state family; a separate pair is fitted for each line and operating state | Duration and observation-time transfer for calibrated cases |
 
-The reported global pair is **`alpha = 0.516`, `sigma = 1.5`**, in the model's
-specified normalization. It is retained in the global-model assessment and the
-subsequent screening calculations. The hierarchy comparison uses the same
-observation convention and Figure 4 timing for all model levels. The
-line-specific and line/state-specific fits require their own fitting records;
-their results should not be described as transfer of an unseen line's fitted
-parameters without documenting how those parameters were obtained.
+`M3` and `M4` use the same additional `25 × 46` reference family but share
+parameters differently. For `M3`, the pair fitted for a line is used across its
+46 operating states. For `M4`, the pair is specific to both the faulted line
+and the operating state. Every pair is identified at the `0.8 s` reclosure
+target and then retained without refitting when the open-phase duration is
+extended to `1.5 s` and the state is assessed at `2.5 s`.
+
+The reported global `M2` pair is **`alpha = 0.516`, `sigma = 1.5`**, in the
+model's specified normalization. It remains fixed in the global-model
+assessment, the temporal studies, and subsequent probability screening. The
+`M3/M4` parameter sets are used for their own hierarchy comparisons, not as
+replacements for that global pair in the screening calculation.
+
+**Calibration effort and interpretation.** Relative to `M2`, the specialized
+models require additional reference observations for the assessment lines and
+25 or 1,150 separately fitted parameter pairs instead of one global pair. Their
+smaller average `RSE_map` must be interpreted together with this additional
+case-specific information and fitting effort. The enlarged reference collection
+does not mean that each individual fit contains more observations than the
+global fit. Nor do the numbers of fitted pairs imply wall-clock multipliers of
+25 or 1,150. The CEM/MC timing comparison measures sampling cost, not the cost
+of fitting the hierarchy.
 
 ### Relative state error and the temporal studies
 
@@ -210,24 +262,34 @@ The reported ranges belong to different experiments:
 | Figure 4, global stochastic model `M2` | `T_op = 1.5 s`, `T_ev = 2.5 s`; all 46 injection scales | Approximately `0.0968–0.15` |
 | Figure 9 at reclosure | `T_op = T_ev = 1.5 s`; nominal injections | Approximately `0.068–0.086` |
 | Figure 9 after reclosure | `T_op = 1.5 s`, `T_ev = 2.5 s`; nominal injections | Approximately `0.11–0.15` |
-| Figure 10 at its longest tested duration | `T_op = T_ev = 1.5 s`; nominal injections | Approximately `0.056–0.0815` |
+| Figure 10 at its longest tested duration | `T_op = T_ev = 1.5 s`; nominal injections | Approximately `0.068–0.086` |
 
-Figures 9–10 contain **no injection-rescaling sweep**. Figure 9 changes the time
-at which a fixed switching experiment is observed; Figure 10 changes the
-switching time while keeping the observation time fixed. Their reported curves
-were generated using different random-seed configurations and are retained as
-separate numerical records. The endpoint values are not overwritten to make
-the two studies coincide, and the nominal-injection range in Figure 9 is not
-substituted for the scaled-injection range in Figure 4.
+Figures 9–10 contain **no injection-rescaling sweep** and use the same fixed
+`M2` pair. Figure 9 varies the observation time after reclosure at `1.5 s`;
+Figure 10 varies the open-phase duration while keeping the observation time
+at `1.5 s`.
 
-**Mean versus sampled evaluation:** the exact mean obtained from the
-deterministic moment equations is seed-independent. For any figure generated
-from seeded surrogate trajectories, its run record must identify the numerical
-quantity used: a moment solution, an empirical ensemble mean, or an individual
-realization, together with the seeds and any ensemble size. Different seeds
-identify different sampled evaluations; they do not change the definition of
-`RSE_map`. The existing figures and reported values are retained without
-assuming an undocumented ensemble construction.
+The regenerated studies use the **same random-seed configuration**. At
+`T_op = T_ev = 1.5 s`, the reported errors agree and span **`[0.068, 0.086]`**
+in both plots. The largest displayed error over Figure 10's tested duration
+range is approximately **`0.086` (8.6%)**. This shared-endpoint agreement
+replaces the previous discrepant records; it does not make the two complete
+sweeps interchangeable.
+
+The nominal-injection range of `0.11–0.15` in Figure 9 at `T_ev = 2.5 s`
+remains distinct from Figure 4's `0.0968–0.15`, which includes all 46 injection
+scales. Both ranges are retained for their respective operating-state
+populations. The dashed curves in Figures 9–10 are empirical guides, not
+universal error bounds.
+
+**Mean and numerical-run records.** The exact conditional mean obtained from
+the deterministic moment equations is seed-independent for fixed inputs. The
+common seed documents the regenerated numerical runs; it does not redefine
+`RSE_map`. Each plotting record must identify how `H mu` was evaluated, the
+actual seed, and any ensemble size and averaging rule used. The seed value and
+an ensemble construction are not inferred from agreement at the shared
+endpoint. Preserve the regenerated arrays and plotting records together with
+the corresponding `RSEmap1.pdf` and `RSEmap2.pdf` figures.
 
 ### Scope of the screening calculation
 
@@ -359,9 +421,11 @@ The code's time arguments are:
 | `saveat` | Spacing of saved trajectory observations |
 | `dt` | Maximum internal integration step during stochastic propagation |
 
-For calibration-reference evaluation, use `T1=0.0`, `T2=0.8`, and `T3=0.8`.
-For the Figure 4 assessment, use `T1=0.0`, `T2=1.5`, and `T3=2.5`. The state
-is not reset at `T2`; when `T2=T3`, the run ends at the reclosure state.
+For calibration-reference evaluation at every fitted hierarchy level (`M1`–`M4`),
+use `T1=0.0`, `T2=0.8`, and `T3=0.8`, selecting the line catalogue and coefficient
+set appropriate to that model. For the Figure 4 assessment, use `T1=0.0`,
+`T2=1.5`, and `T3=2.5` without refitting. The state is not reset at `T2`;
+when `T2=T3`, the run ends at the reclosure state.
 
 When reclosure occurs after `T3`, the altered network remains active throughout
 the observed interval. The original duration draw remains unchanged in the
@@ -543,16 +607,26 @@ DFX = simulate_trajectory(
 )
 ```
 
-This single-trajectory example uses the Figure 4 time settings and one of its
-injection scales. The example row, seed, internal step, and saved grid are not
-a reconstruction of the figure's complete run configuration. To evaluate a
-calibration-reference trajectory, set `T2=T3=0.8` and select a training line;
-parameter fitting itself uses the deterministic moment equations and the
-calibration objective, not this single realization. For Figures 9–10, set
-`injection_scale=1.0` and vary only the time specified in the protocol table.
-Match each reported parameter set to its actual model definition and numerical
-records; changing the model or integration method does not establish that an
-earlier calibration remains valid.
+This single-trajectory example uses the global `M2` pair, the Figure 4 time
+settings, and one of its injection scales. The example row, seed, internal step,
+and saved grid are not a reconstruction of the figure's complete run
+configuration. In particular, `Xoshiro(2026)` is an example stream, not the
+recorded common seed of the regenerated temporal studies.
+
+To evaluate a calibration-reference trajectory, set `T2=T3=0.8`. Select a line
+from `training_lines` for the global `M1/M2` calibration, or from `testing_lines`
+for the additional `M3/M4` calibration records. Parameter fitting itself uses
+the deterministic moment equations and calibration objective, not this single
+realization. To assess `M3` or `M4` at the Figure 4 settings, use the pair already
+fitted for that line or line/state case, respectively; do not substitute the
+`M2` pair or refit at the later endpoint.
+
+For Figures 9–10, set `injection_scale=1.0`, retain the global `M2` pair, and
+vary only the time specified in the protocol table. Use the recorded common
+random-seed configuration when reproducing the regenerated runs. Match each
+parameter set to its actual model definition and numerical records; changing
+the model or integration method does not establish that an earlier calibration
+remains valid.
 
 The output contains phase columns `x1`, ..., `xn`, optional frequency columns
 `omega1`, ..., `omegan`, and `Time`. Reclosure is saved once. When changing the
@@ -732,12 +806,26 @@ state ordering, endpoint amplitudes, opening and reclosing times, internal `dt`,
 output `saveat`, and event-comparison convention. Keep the exact source revision
 that generated each result.
 
-For calibration and state-error figures, also record the experiment name,
-training/testing membership, injection scale, `T_op`, `T_ev`, observation mask,
-model level, and parameter-fit identifier. Distinguish moment-based state
-predictions from single trajectories and empirical ensemble means. Include any
-trajectory seeds and ensemble sizes without treating a seed as an input to the
-exact deterministic moment solution.
+For calibration and state-error figures, record the experiment name, model
+level, line-catalogue membership, calibration or assessment role, injection
+scale, `T_op`, `T_ev`, observation mask, and parameter-fit identifier. A global
+`testing_lines` identifier can occur in an `M3/M4` calibration record at `0.8 s`
+and in a Figure 4 assessment record at `(T_op, T_ev) = (1.5, 2.5) s`; these
+records must remain distinguishable.
+
+Link the one global `M2` pair, the 25 line-specific `M3` pairs, and the 1,150
+case-specific `M4` pairs to their actual calibration inputs and optimization
+records. Record the objective terms, covariance-target source, regularization,
+and optimizer settings for each fitting level. A case-specific pair does not
+imply that a covariance was estimated from a single deterministic EMT trajectory.
+
+For the regenerated temporal studies, retain the common seed, source revision,
+input and output hashes, and plotting configuration. Record the shared-endpoint
+check at `T_op = T_ev = 1.5 s` and its reported `[0.068, 0.086]` range.
+Distinguish moment-based state predictions from individual trajectories and
+empirical ensemble means, recording any ensemble size and averaging rule.
+These numerical records must not treat a seed as an input to the exact
+deterministic moment solution.
 
 Record adaptation and estimation runtimes separately, including compilation and
 initialization policies. The current run driver times computation separately
@@ -748,13 +836,21 @@ phase-endpoint implementation is tested.
 
 ## Calibration archive and ParaEMT provenance
 
-The calibration-reference collection contains **25 training lines × 46
-operating scales = 1,150 scenarios**, with `T_op = T_ev = 0.8 s`. The Figure 4
-assessment uses **25 disjoint testing lines × the same 46 scales**, with
-`T_op = 1.5 s` and `T_ev = 2.5 s`. The exact partition is given under
+The reference records have three distinct roles:
+
+| Reference family | Line catalogue and operating states | Time settings | Use |
+|---|---|---|---|
+| Global calibration | 25 `training_lines` × 46 scales = 1,150 cases | `T_op = T_ev = 0.8 s` | Fit the global `M1/M2` coefficients |
+| Additional specialized calibration | 25 `testing_lines` × 46 scales = 1,150 cases | `T_op = T_ev = 0.8 s` | Fit 25 `M3` pairs and 1,150 `M4` pairs from the same additional reference family |
+| Figure 4 assessment | The same 25 `testing_lines` × 46 scales = 1,150 cases | `T_op = 1.5 s`, `T_ev = 2.5 s` | Score `M0`–`M4` with all coefficients fixed |
+
+The exact global partition is given under
 [Training and testing fault identifiers](#training-and-testing-fault-identifiers).
-Archive membership and completeness must be established from scenario metadata,
-not from the number of ZIP files.
+The specialized calibration enlarges the reference information available beyond
+that used by the global fit; it does not make every individual local fit larger
+than the global fit. `M3` and `M4` organize the same additional reference family
+into different parameter-sharing rules. Archive membership and completeness
+must be established from scenario metadata, not from the number of ZIP files.
 
 The previously documented sweep over 15 open-phase durations contains **17,250**
 line/scale/duration combinations. It is a separate archive description, not the
@@ -780,23 +876,28 @@ trajectories using their scenario identifiers and metadata, not ZIP numbers.
 Keep EMT references and surrogate outputs in different directories. A historical
 filename beginning with `ParaEMTDF` does not identify the generating simulator.
 Each manifest entry must record that source, the exact line mapping, operating
-scale, `T_op`, `T_ev` or `T_h`, projection/units, experiment and train/test
-assignment, and checksum. Include the random-seed configuration when the
-trajectory generation or numerical assessment uses sampling. Two files with
-the same fault label need not belong to the same experiment.
+scale, `T_op`, `T_ev` or `T_h`, projection/units, model-specific calibration or
+assessment role, and checksum. Retain the global training/testing catalogue
+membership separately from that role. Include the random-seed configuration
+when trajectory generation or numerical assessment uses sampling. Two files
+with the same fault label need not belong to the same experiment. Keep the
+regenerated Figures 9–10 records distinguishable from their earlier versions.
 
-After extraction, populate the calibration metadata with the **training**
-trajectory records and paths to the extracted CSV files, then run:
+For the **global `M1/M2` calibration collection**, populate the metadata with
+its training trajectory records and paths to the extracted CSV files, then run:
 
 ```sh
 python scripts/index_calibration.py --metadata YOUR_METADATA.csv --data-root . --output data/wecc240/metadata/calibration_manifest.csv --require-1150
 ```
 
-The `--require-1150` count applies to the intended 1,150-scenario training
-collection. Do not pool training, testing, and multi-duration records merely to
-meet that count. Keep separate experiment manifests and verify the actual line
-identifiers, the 46 scales, and the recorded times against this README; a count
-check alone does not verify the partition.
+In this example, `--require-1150` applies to the 1,150-case global-calibration
+collection. Keep the additional `M3/M4` calibration references and the Figure 4
+assessment in separate manifests. Each also has 1,150 line/state cases, but their
+line membership or time settings differ from the global-calibration collection.
+Do not combine families or multi-duration records merely to satisfy a count.
+Verify the actual line identifiers, the 46 scales, time settings, and model roles;
+a count check alone does not establish the partition or prevent fitting on
+assessment records.
 
 Capture ParaEMT provenance from the checkout and Python environment that generated
 the reference trajectories:
@@ -827,8 +928,11 @@ directions. Fill the release identifiers in `manuscript/references.bib` and use
 the after-release Data Availability statement only after the listed materials
 are publicly accessible.
 
-The manuscript cites this repository for the exact fault identifiers and the
-training/testing partition documented above. A repository citation is:
+The manuscript cites this repository for the exact fault identifiers, the global
+`M1/M2` training/testing partition, and the additional `M3/M4` calibration
+allocation documented above. Versioned experiment records should also identify
+the regenerated common-seed temporal studies and their replacement figures.
+A repository citation is:
 
 > A. Almada, “PowerGridREserach: Power-grid dynamic screening code,” GitHub
 > repository. https://github.com/AyrtonAlmada/PowerGridREserach
@@ -847,3 +951,4 @@ This software supports research into contingency screening. It is not a protecti
 relay implementation or an operational security certification. Probability-zone
 boundaries and overload-duration thresholds must be identified for each study;
 they are not universal protection requirements.
+Displaying PowerGridREserach_README_Hierarchy_Temporal_20261111.txt.
