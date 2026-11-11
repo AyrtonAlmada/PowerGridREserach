@@ -951,4 +951,3 @@ This software supports research into contingency screening. It is not a protecti
 relay implementation or an operational security certification. Probability-zone
 boundaries and overload-duration thresholds must be identified for each study;
 they are not universal protection requirements.
-Displaying PowerGridREserach_README_Hierarchy_Temporal_20261111.txt.
